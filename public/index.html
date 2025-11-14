@@ -1,129 +1,174 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>سوق مبوب — إعلانات</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>سوق مبوب</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
-  *{box-sizing:border-box;font-family:Tahoma, Arial, sans-serif}
-  body{margin:0;background:#f3f6fb;color:#0b1320;padding:18px}
-  .wrap{max-width:1100px;margin:0 auto}
-  header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-  .controls{display:flex;gap:8px;flex:1;min-width:220px;margin:12px 0}
-  input{padding:10px;border-radius:8px;border:1px solid #e1e7ee;flex:1}
-  .grid{display:grid;grid-template-columns:repeat(1,1fr);gap:12px}
-  @media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+  :root{
+    --accent:#0078d7;
+    --muted:#6b7280;
+    --card-bg:#ffffff;
+    --bg:#f3f6fb;
+  }
+  *{box-sizing:border-box;font-family:"Tajawal",system-ui,Arial,sans-serif}
+  body{margin:0;background:var(--bg);color:#0b1320}
+  .container{max-width:1100px;margin:18px auto;padding:16px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{width:54px;height:54px;border-radius:10px;background:linear-gradient(135deg,#0ea5e9,#06b6d4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+  h1{margin:0;font-size:20px}
+  .controls{display:flex;gap:10px;margin-top:12px;align-items:center}
+  input[type="search"]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef8;background:#fff}
+  select{padding:10px;border-radius:8px;border:1px solid #e6eef8;background:#fff}
+  .wa-send{background:#25D366;color:#fff;border:none;padding:10px 14px;border-radius:10px;cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(1,1fr);gap:14px;margin-top:18px}
+  @media(min-width:680px){.grid{grid-template-columns:repeat(2,1fr)}}
   @media(min-width:980px){.grid{grid-template-columns:repeat(3,1fr)}}
-  .card{background:#fff;border-radius:10px;padding:10px;box-shadow:0 6px 18px rgba(11,19,32,0.06);overflow:hidden}
-  .media{height:160px;background:#efefef;display:flex;align-items:center;justify-content:center;border-radius:8px;overflow:hidden}
+  .card{background:var(--card-bg);border-radius:12px;overflow:hidden;box-shadow:0 6px 18px rgba(2,6,23,0.06);display:flex;flex-direction:column}
+  .media{height:180px;background:#eef3fb;display:flex;align-items:center;justify-content:center;overflow:hidden}
   .media img{width:100%;height:100%;object-fit:cover;display:block}
-  .body{padding:10px}
+  .body{padding:12px;flex:1;display:flex;flex-direction:column}
   .title{font-weight:700;margin-bottom:6px}
-  .desc{color:#334;line-height:1.3;margin-bottom:8px}
-  .meta{font-size:13px;color:#666}
-  .code{display:inline-block;background:#e9f6ff;color:#0078d7;padding:6px;border-radius:6px;margin-top:10px;direction:ltr}
-  .small{font-size:13px;color:#666}
-  .noitems{text-align:center;padding:20px;color:#666}
-  img.lazy {opacity:0;transition:opacity .2s ease-in}
-  img.lazy.loaded {opacity:1}
+  .desc{color:var(--muted);font-size:14px;line-height:1.3;margin-bottom:10px;flex:1}
+  .meta{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .code{background:#e9f6ff;color:var(--accent);padding:6px;border-radius:8px;direction:ltr;font-weight:600}
+  footer.small{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+  .noitems{text-align:center;padding:28px;color:var(--muted)}
+  /* light button styles */
+  .btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+  .ghost{background:#fff;color:var(--accent);border:1px solid #dbeafe}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="container">
   <header>
-    <div>
-      <h2 style="margin:0">سوق مبوب</h2>
-      <div class="small">إعلانات — ثابتة (GitHub Pages)</div>
+    <div class="brand">
+      <div class="logo">د</div>
+      <div>
+        <h1>سوق مبوب</h1>
+        <div style="color:var(--muted);font-size:13px">الإعلانات — عرض ثابت</div>
+      </div>
     </div>
-    <nav>
-      <a href="admin.html" style="color:#0078d7;text-decoration:none">لوحة الإدارة (يدوي)</a>
-    </nav>
+
+    <div style="display:flex;gap:10px;align-items:center">
+      <a class="ghost" href="admin.html" style="text-decoration:none;padding:8px 12px;border-radius:8px;color:var(--accent);">لوحة الإدارة</a>
+    </div>
   </header>
 
-  <div class="controls">
-    <input id="q" placeholder="ابحث بالعنوان، الوصف أو الرمز" aria-label="search">
-    <button id="refresh">تحديث</button>
+  <div class="controls" style="margin-top:14px">
+    <input id="search" type="search" placeholder="بحث بالعنوان أو الوصف أو الرمز أو الموقع">
+    <select id="catFilter">
+      <option value="">كل الفئات</option>
+    </select>
+
+    <!-- WhatsApp button: edit PHONE_NUMBER constant below if needed -->
+    <button id="waBtn" class="wa-send" title="إرسال عبر واتساب">أرسل إعلانك عبر واتساب</button>
   </div>
 
-  <div id="grid" class="grid" aria-live="polite"></div>
-  <div id="noitems" class="noitems" style="display:none">لا توجد إعلانات</div>
+  <main>
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <div id="noitems" class="noitems" style="display:none">لا توجد إعلانات</div>
+  </main>
+
+  <footer class="small">
+    موقع ثابت يعمل عبر GitHub Pages — لتحديث الإعلان قم بتعديل ads.json ورفع الصور إلى public/images/.
+  </footer>
 </div>
 
 <script>
-const ADS_URL = 'ads.json'; // keep in same folder
+/*
+  CONFIG:
+  - Set WHATSAPP_NUMBER to the full international number (digits only) you want the WA link to open.
+    Example for +249 964 147 954 -> '249964147954'
+  - The message text is "hi i want to post" per your request.
+*/
+const WHATSAPP_NUMBER = '249964147954'; // <-- change this if you want
+const WA_MESSAGE = 'hi i want to post';
+
+const ADS_URL = 'ads.json';
+const IMG_PREFIX = 'images/';
+
 const grid = document.getElementById('grid');
-const qEl = document.getElementById('q');
 const noitems = document.getElementById('noitems');
+const searchEl = document.getElementById('search');
+const catFilter = document.getElementById('catFilter');
+const waBtn = document.getElementById('waBtn');
+
+let ADS = [];
 
 function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-async function loadAds(q=''){
+async function loadAds(){
   try {
-    const res = await fetch(ADS_URL, {cache:'no-cache'});
-    if (!res.ok) throw new Error('Failed to load ads.json');
-    let ads = await res.json();
-    ads = ads.map(a => Object.assign({}, a, { created_at: new Date(a.created_at || Date.now()).toISOString() }));
-    // newest first
-    ads.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-    if (q) {
-      const qq = q.toLowerCase();
-      ads = ads.filter(a => (a.title||'').toLowerCase().includes(qq) || (a.desc||'').toLowerCase().includes(qq) || (a.loc||'').toLowerCase().includes(qq) || (a.code||'').toLowerCase().includes(qq));
-    }
-    render(ads);
-  } catch (e) {
-    grid.innerHTML = '<div class="noitems">خطأ في تحميل الإعلانات.</div>';
+    const r = await fetch(ADS_URL, {cache:'no-cache'});
+    if(!r.ok) throw new Error('ads.json not found');
+    ADS = await r.json();
+    // normalize created_at
+    ADS = ADS.map(a => Object.assign({}, a, { created_at: a.created_at || new Date().toISOString() }));
+    ADS.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    buildCats();
+    render();
+  } catch(e){
     console.error(e);
+    grid.innerHTML = '<div class="noitems">تعذّر تحميل الإعلانات. تأكد من أن ads.json موجود.</div>';
   }
 }
 
-function render(ads){
+function buildCats(){
+  const cats = new Set();
+  ADS.forEach(a => { if(a.cat) cats.add(a.cat); });
+  catFilter.innerHTML = '<option value="">كل الفئات</option>';
+  Array.from(cats).sort().forEach(c => {
+    const o = document.createElement('option'); o.value=c; o.textContent=c; catFilter.appendChild(o);
+  });
+}
+
+function render(){
+  const q = (searchEl.value||'').trim().toLowerCase();
+  const cat = catFilter.value;
+  let list = ADS.slice();
+  if(q) list = list.filter(a => (a.title||'').toLowerCase().includes(q) || (a.desc||'').toLowerCase().includes(q) || (a.loc||'').toLowerCase().includes(q) || (a.code||'').toLowerCase().includes(q));
+  if(cat) list = list.filter(a => a.cat === cat);
   grid.innerHTML = '';
-  if (!ads || ads.length === 0) { noitems.style.display='block'; return; }
+  if(list.length === 0){ noitems.style.display='block'; return; }
   noitems.style.display='none';
-  ads.forEach(a => {
+  list.forEach(a => {
     const el = document.createElement('article');
     el.className = 'card';
     el.innerHTML = `
-      <div class="media">${a.img ? `<img data-src="${escapeHtml(a.img)}" alt="${escapeHtml(a.title||'')}" class="lazy">` : 'لا صورة'}</div>
+      <div class="media">${a.img ? `<img data-src="${escapeHtml(a.img)}" alt="${escapeHtml(a.title||'')}" loading="lazy">` : '<div style="color:var(--muted)">'+(a.title||'بدون صورة')+'</div>'}</div>
       <div class="body">
         <div class="title">${escapeHtml(a.title||a.code||'بدون عنوان')}</div>
         <div class="desc">${escapeHtml(a.desc||'')}</div>
-        <div class="meta">📍 ${escapeHtml(a.loc||'')} • ${escapeHtml(a.contact||'')}</div>
-        <div class="code">#${escapeHtml(a.code||'')}</div>
+        <div style="margin-top:10px" class="meta">
+          <div class="small">📍 ${escapeHtml(a.loc||'')} • ${escapeHtml(a.contact||'')}</div>
+          <div><span class="code">#${escapeHtml(a.code||'')}</span></div>
+        </div>
       </div>
     `;
     grid.appendChild(el);
   });
-  lazyLoadImages();
+  // image lazy load
+  Array.from(grid.querySelectorAll('img[data-src]')).forEach(img=>{
+    if(img.dataset.loaded) return;
+    img.src = img.dataset.src;
+    img.onload = ()=> img.dataset.loaded = '1';
+  });
 }
 
-function lazyLoadImages(){
-  const lazyImgs = Array.from(document.querySelectorAll('img.lazy'));
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries, obs) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const img = entry.target;
-          img.src = img.dataset.src;
-          img.onload = () => img.classList.add('loaded');
-          obs.unobserve(img);
-        }
-      });
-    }, { rootMargin: '200px' });
-    lazyImgs.forEach(i => io.observe(i));
-  } else {
-    // fallback: load all
-    lazyImgs.forEach(img => { img.src = img.dataset.src; img.onload = ()=>img.classList.add('loaded'); });
-  }
-}
+// Events
+searchEl.addEventListener('input', () => setTimeout(render, 120));
+catFilter.addEventListener('change', render);
 
-// events
-document.getElementById('refresh').addEventListener('click', ()=> loadAds(qEl.value.trim()));
-qEl.addEventListener('input', debounce(()=> loadAds(qEl.value.trim()), 300));
+waBtn.addEventListener('click', ()=>{
+  const text = encodeURIComponent(WA_MESSAGE);
+  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${text}`;
+  window.open(url, '_blank');
+});
 
-function debounce(fn, t=300){ let timer; return (...a)=>{ clearTimeout(timer); timer=setTimeout(()=>fn(...a), t); }; }
-
-// initial
+// init
 loadAds();
 </script>
 </body>
