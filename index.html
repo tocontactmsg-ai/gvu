@@ -4,57 +4,53 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>الدلالة — إعلانات</title>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#f7fbff;--card:#ffffff;--accent:#006fcf;--muted:#6b7280;--radius:12px;--gap:14px}
-  *{box-sizing:border-box;font-family:"Tajawal",system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
-  body{margin:0;background:var(--bg);color:#07203a;line-height:1.45}
-  .wrap{max-width:1100px;margin:18px auto;padding:14px}
-  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .brand h1{margin:0;font-size:22px;letter-spacing:0.2px}
-  .controls{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
-  input[type="text"],select{width:100%;padding:12px;border-radius:10px;border:1px solid #e6eef8;font-size:15px}
+  :root{--bg:#f7fbff;--card:#fff;--accent:#0078d7;--muted:#6b7280;--radius:10px}
+  *{box-sizing:border-box;font-family:"Tajawal",system-ui,Segoe UI,Roboto,Arial}
+  body{margin:0;background:var(--bg);color:#042031;line-height:1.45}
+  .wrap{max-width:1000px;margin:18px auto;padding:14px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,#0078d7,#005bb5);color:#fff;padding:12px;border-radius:10px}
+  .topbar .title{font-size:20px;font-weight:700}
+  .topbar .sub{font-size:13px;opacity:.95}
+  .controls{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  input[type="text"],select,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid #e8f2fb;font-size:16px}
   button{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700}
   main{margin-top:18px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap)}
-  @media (max-width:1000px){ .grid{grid-template-columns:repeat(2,1fr)} }
-  @media (max-width:640px){ .grid{grid-template-columns:1fr} .brand h1{font-size:20px} input[type="text"]{font-size:14px} button{padding:10px 12px} }
-  .card{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:0 8px 24px rgba(9,30,66,0.06);display:flex;flex-direction:column;height:100%}
-  .media{height:180px;background:linear-gradient(180deg,#eef6ff,#fff);display:flex;align-items:center;justify-content:center;overflow:hidden}
-  .media img{width:100%;height:100%;object-fit:cover;display:block}
-  .media .placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:18px;color:var(--muted)}
-  .body{padding:14px;flex:1;display:flex;flex-direction:column}
-  .title{font-size:18px;font-weight:800;margin:0 0 8px}
-  .desc{color:#233047;font-size:14px;flex:1}
-  .meta{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
-  .tag{background:#e8f3ff;color:var(--accent);padding:6px 8px;border-radius:8px;font-weight:700;font-size:13px}
-  .contact{margin-left:auto;color:var(--muted);font-size:13px}
-  .noitems{padding:28px;text-align:center;color:var(--muted);font-size:15px}
-  .panel{margin-top:20px;background:var(--card);padding:14px;border-radius:12px;box-shadow:0 8px 20px rgba(9,30,66,0.04)}
-  textarea{width:100%;min-height:96px;padding:12px;border-radius:10px;border:1px solid #eef6ff;font-size:15px}
-  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.grid{grid-template-columns:1fr} .topbar .title{font-size:18px}}
+  .card{background:var(--card);border-radius:10px;overflow:hidden;box-shadow:0 8px 18px rgba(10,25,40,.06);display:flex;flex-direction:column;height:100%}
+  .media{height:180px;background:#f2f8ff;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .media img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
+  .placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);padding:12px}
+  .body{padding:14px;display:flex;flex-direction:column;gap:10px}
+  .title{font-size:18px;font-weight:800;margin:0}
+  .desc{font-size:15px;color:#123046}
+  .meta{display:flex;gap:8px;align-items:center}
+  .tag{background:#e9f6ff;color:var(--accent);padding:6px 8px;border-radius:8px;font-weight:700}
+  .contact{margin-left:auto;color:var(--muted);font-size:14px}
+  .panel{margin-top:18px;background:var(--card);padding:14px;border-radius:10px;box-shadow:0 8px 20px rgba(10,25,40,.04)}
+  .big{font-size:17px}
+  .mutedSmall{font-size:13px;color:var(--muted)}
   .refBox{display:flex;gap:8px;align-items:center;margin-top:10px}
   .refCode{background:#f0f9ff;padding:8px 12px;border-radius:10px;color:var(--accent);font-weight:800}
-  .mutedSmall{font-size:13px;color:var(--muted)}
+  pre{background:#fbfdff;padding:10px;border-radius:8px;overflow:auto}
   .logList{margin-top:12px;background:#fff;padding:8px;border-radius:8px}
-  .logRow{display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #f2f2f2}
-  a.link{color:var(--accent);text-decoration:none}
 </style>
 </head>
 <body>
-<div class="wrap" role="main">
-  <header>
-    <div class="brand">
-      <h1>الدلالة</h1>
-      <p class="mutedSmall">إعلانات مبسطة — سريع وواضح</p>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="title">الدلالة — الإعلانات</div>
+      <div class="sub">أرسل إعلانك بسرعة — رمز التتبع يرسل تلقائياً إلى المشرف</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <div class="mutedSmall">تابع: <strong>+249 927 318 621</strong></div>
-    </div>
-  </header>
+    <div class="mutedSmall">WhatsApp: <strong>+249964147954</strong></div>
+  </div>
 
   <div class="controls">
-    <input id="q" class="search" type="text" placeholder="ابحث بالعنوان أو الرمز أو الموقع">
+    <input id="q" type="text" placeholder="ابحث بالعنوان أو الرمز أو الموقع">
     <select id="catFilter" style="width:220px"><option value="">كل الفئات</option></select>
     <button id="refresh">⟳ تحديث</button>
   </div>
@@ -62,39 +58,41 @@
   <main>
     <section aria-labelledby="ads-list">
       <div id="grid" class="grid" aria-live="polite"></div>
-      <div id="noitems" class="noitems" style="display:none">لا توجد إعلانات</div>
+      <div id="noitems" style="display:none;padding:22px;text-align:center;color:#6b7280;font-size:15px">لا توجد إعلانات</div>
     </section>
 
     <section class="panel" aria-labelledby="send-form">
-      <h2 id="send-form" style="margin:0 0 6px">أرسل إعلانك</h2>
-      <div class="mutedSmall">بعد الإرسال سيتم إرسال رمز المتابعة تلقائياً إلى رقم الواتساب: <strong>+249927318621</strong></div>
+      <h2 class="big">أرسل إعلانك</h2>
+      <div class="mutedSmall">بعد الإرسال سيُرسَل رمز التتبع تلقائياً إلى المشرف عبر WhatsApp.</div>
 
-      <label><input id="f_name" placeholder="عنوان الإعلان" /></label>
-      <label><textarea id="f_desc" placeholder="وصف الإعلان"></textarea></label>
-      <div class="row">
-        <input id="f_loc" placeholder="الموقع (مثال: Khartoum)" style="flex:1;min-width:180px">
-        <input id="f_contact" placeholder="وسيلة التواصل" style="width:220px">
-        <input id="f_cat" placeholder="التصنيف" style="width:220px">
+      <label class="field"><input id="f_name" placeholder="عنوان الإعلان" class="big"></label>
+      <label class="field"><textarea id="f_desc" placeholder="وصف الإعلان" class="big"></textarea></label>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <input id="f_loc" placeholder="الموقع (مثال: Khartoum)" style="flex:1;min-width:160px" class="big">
+        <input id="f_contact" placeholder="وسيلة التواصل" style="width:220px" class="big">
+        <input id="f_cat" placeholder="التصنيف" style="width:220px" class="big">
       </div>
 
-      <label style="margin-top:8px">صورة (اختياري): <input id="f_file" type="file" accept="image/*"></label>
+      <label style="margin-top:10px" class="mutedSmall">صورة (اختياري): <input id="f_file" type="file" accept="image/*"></label>
 
-      <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
-        <button id="submitBtn">إرسال</button>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
+        <button id="submitBtn" class="big">إرسال</button>
         <div id="submitStatus" class="mutedSmall"></div>
       </div>
 
-      <div id="afterSubmit" style="display:none;margin-top:10px">
+      <div id="afterSubmit" style="display:none;margin-top:12px">
         <div class="refBox">
           <div class="mutedSmall">رمز الإرسال:</div>
           <div id="refCode" class="refCode"></div>
-          <button id="copyRef" class="small" style="background:#eee;color:#222;border-radius:8px;padding:6px 8px;border:none">نسخ</button>
-          <a id="openWa" class="link" target="_blank" style="margin-left:8px"></a>
+          <button id="copyRef" style="background:#eee;color:#222;border-radius:8px;padding:6px 8px;border:none">نسخ</button>
+          <a id="openWa" class="mutedSmall" target="_blank" style="margin-left:8px"></a>
         </div>
         <div id="fallbackJson" style="display:none;margin-top:8px">
-          <div class="mutedSmall">إذا لم يُسمح بالإرسال التلقائي، انسخ هذه البيانات وأرسلها للمدير:</div>
+          <div class="mutedSmall">فشل الإرسال التلقائي — انسخ هذه البيانات وابعثها للمشرف:</div>
           <pre id="fallbackArea"></pre>
         </div>
+
         <div class="logList" id="logList" style="margin-top:12px">
           <strong>آخر الإرساليات</strong>
           <div id="logRows"></div>
@@ -105,91 +103,12 @@
 </div>
 
 <script>
-/* ---------- helpers ---------- */
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function debounce(fn, t=300){ let timer; return (...a)=>{ clearTimeout(timer); timer=setTimeout(()=>fn(...a),t); }; }
+/* minimal fast index.js embedded */
+const WA_NUMBER = '249964147954'; // new number (without +)
 const grid = document.getElementById('grid');
 const qEl = document.getElementById('q');
 const catFilter = document.getElementById('catFilter');
 const noitems = document.getElementById('noitems');
-let ads = [];
-
-/* ---------- load ads ---------- */
-async function loadAds(){
-  const paths = ['./static/ads.json','./ads.json','/static/ads.json'];
-  let items = null;
-  for(const p of paths){
-    try{
-      const res = await fetch(p, { cache: 'no-cache' });
-      if(!res.ok) continue;
-      items = await res.json();
-      break;
-    }catch(e){ continue; }
-  }
-  if(!items){ grid.innerHTML = '<div class="noitems">تعذّر تحميل الإعلانات</div>'; return; }
-  ads = Array.isArray(items) ? items : [];
-  ads.sort((a,b)=> (new Date(b.created_at||0)) - (new Date(a.created_at||0)));
-  renderGrid(ads);
-  buildCategories();
-}
-
-/* ---------- render ---------- */
-function renderGrid(items){
-  grid.innerHTML = '';
-  if(!items || items.length===0){ noitems.style.display='block'; return; } else noitems.style.display='none';
-  items.forEach(a=>{
-    const card = document.createElement('article'); card.className='card';
-    const hasImage = !!(a.thumb || a.image);
-    const media = document.createElement('div'); media.className='media';
-    if(hasImage){
-      const img = document.createElement('img'); img.src = a.thumb || a.image; img.alt = a.name || 'ad'; img.loading='lazy';
-      img.onerror = ()=> { media.innerHTML = placeholderHtml(a); }
-      media.appendChild(img);
-    } else media.innerHTML = placeholderHtml(a);
-    const body = document.createElement('div'); body.className='body';
-    const title = document.createElement('h3'); title.className='title'; title.innerText = a.name || '(بدون عنوان)';
-    const desc = document.createElement('div'); desc.className='desc'; desc.innerText = a.description || '';
-    const meta = document.createElement('div'); meta.className='meta';
-    const tag = document.createElement('div'); tag.className='tag'; tag.innerText = a.category || 'عام';
-    const contact = document.createElement('div'); contact.className='contact'; contact.innerText = a.contact || '';
-    meta.appendChild(tag); meta.appendChild(contact);
-    body.appendChild(title); body.appendChild(desc); body.appendChild(meta);
-    card.appendChild(media); card.appendChild(body); grid.appendChild(card);
-  });
-}
-function placeholderHtml(a){
-  const txt = escapeHtml(a.name || 'لا صورة');
-  return `<div class="placeholder" aria-hidden="true">
-    <svg width="86" height="86" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:.45">
-      <rect width="24" height="24" rx="4" fill="#e6f2ff"/>
-      <path d="M4 15l4-5 4 6 4-8 4 5" stroke="#90b7ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <div style="margin-top:10px;font-weight:700">${txt}</div>
-  </div>`;
-}
-
-/* ---------- categories ---------- */
-function buildCategories(){
-  const s = new Set(); ads.forEach(a=> a.category && s.add(a.category));
-  catFilter.innerHTML = '<option value="">كل الفئات</option>';
-  Array.from(s).sort().forEach(c=> {
-    const o = document.createElement('option'); o.value=c; o.innerText=c; catFilter.appendChild(o);
-  });
-}
-function filterList(){
-  const q = qEl.value.trim().toLowerCase(); const cat = catFilter.value;
-  const filtered = ads.filter(a=>{
-    if(cat && a.category !== cat) return false;
-    if(!q) return true;
-    return (a.name||'').toLowerCase().includes(q) || (a.code||'').toLowerCase().includes(q) || (a.location||'').toLowerCase().includes(q);
-  });
-  renderGrid(filtered);
-}
-qEl.addEventListener('input', debounce(filterList, 250));
-catFilter.addEventListener('change', filterList);
-document.getElementById('refresh').addEventListener('click', ()=>loadAds());
-
-/* ---------- submission flow + WhatsApp + local log ---------- */
 const submitBtn = document.getElementById('submitBtn');
 const submitStatus = document.getElementById('submitStatus');
 const afterSubmit = document.getElementById('afterSubmit');
@@ -200,140 +119,138 @@ const fallbackBox = document.getElementById('fallbackJson');
 const openWaLink = document.getElementById('openWa');
 const logRows = document.getElementById('logRows');
 
+const LOG_KEY = 'static_ads_sent_refs';
+function pushLocalLog(entry){ try{ const cur = JSON.parse(localStorage.getItem(LOG_KEY)||'[]'); cur.unshift(entry); localStorage.setItem(LOG_KEY, JSON.stringify(cur.slice(0,50))); }catch(e){} }
+function renderLocalLog(){ const rows = JSON.parse(localStorage.getItem(LOG_KEY)||'[]').slice(0,10); logRows.innerHTML=''; if(rows.length===0){ logRows.innerHTML='<div style="color:#6b7280;padding:8px">لا توجد إرساليات محلية بعد</div>'; return } rows.forEach(r=>{ const el=document.createElement('div'); el.style.display='flex'; el.style.justifyContent='space-between'; el.style.padding='6px 0'; el.innerHTML=`<div><strong>${r.ref}</strong> — ${r.name||''}</div><div style="color:#6b7280">${new Date(r.ts).toLocaleString()}</div>`; logRows.appendChild(el) }) }
+renderLocalLog();
+
 function genRef(){ return 'R' + Date.now().toString(36).slice(-6).toUpperCase(); }
 
+/* load ads.json with short localStorage cache to speed page */
+async function loadAds(){
+  try{
+    const CACHE_KEY='static_ads_cache_v1';
+    const cached = JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
+    const now = Date.now();
+    if(cached && (now - cached.t < 30*1000) && cached.data){ renderGrid(cached.data); buildCategories(cached.data); return; }
+    const paths = ['./static/ads.json','./ads.json','/static/ads.json'];
+    let items = null;
+    for(const p of paths){
+      try{ const res = await fetch(p, {cache:'no-cache'}); if(!res.ok) continue; items = await res.json(); break } catch(e){ continue }
+    }
+    if(!items){ grid.innerHTML = '<div style="padding:18px;color:#6b7280">تعذّر تحميل الإعلانات</div>'; return }
+    localStorage.setItem(CACHE_KEY, JSON.stringify({t:now,data:items}));
+    renderGrid(items); buildCategories(items);
+  }catch(e){
+    grid.innerHTML = '<div style="padding:18px;color:#6b7280">خطأ في تحميل الإعلانات</div>';
+  }
+}
+
+/* render */
+function renderGrid(items){
+  grid.innerHTML=''; if(!items || items.length===0){ noitems.style.display='block'; return } else noitems.style.display='none';
+  items.forEach(a=>{
+    const card=document.createElement('article'); card.className='card';
+    const media=document.createElement('div'); media.className='media';
+    const imgPath = (a.thumb||a.image||'').replace(/^\//,'');
+    if(imgPath){
+      const img=document.createElement('img'); img.loading='lazy'; img.src = imgPath; img.alt = a.name||''; img.onclick = ()=> showLightbox(img.src);
+      img.onerror = ()=> { media.innerHTML = `<div class="placeholder"><div style="font-weight:700">${escapeHtml(a.name||'لا صورة')}</div></div>`; }
+      media.appendChild(img);
+    } else {
+      media.innerHTML = `<div class="placeholder"><div style="font-weight:700">${escapeHtml(a.name||'لا صورة')}</div></div>`;
+    }
+    const body=document.createElement('div'); body.className='body';
+    body.innerHTML = `<h3 class="title">${escapeHtml(a.name||'بدون عنوان')}</h3><div class="desc">${escapeHtml(a.description||'')}</div>`;
+    const meta=document.createElement('div'); meta.className='meta';
+    const tag=document.createElement('div'); tag.className='tag'; tag.innerText = a.category || 'عام';
+    const contact=document.createElement('div'); contact.className='contact'; contact.innerText = a.contact || '';
+    meta.appendChild(tag); meta.appendChild(contact); body.appendChild(meta);
+    card.appendChild(media); card.appendChild(body); grid.appendChild(card);
+  });
+}
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showLightbox(src){ const w = window.open('', '_blank'); if(w){ w.document.write(`<img src="${src}" style="max-width:100%;height:auto">`) } }
+
+/* categories and filter */
+function buildCategories(items){ const s=new Set(); (items||[]).forEach(a=> a.category && s.add(a.category)); catFilter.innerHTML='<option value="">كل الفئات</option>'; Array.from(s).sort().forEach(c=>{ const o=document.createElement('option'); o.value=c; o.innerText=c; catFilter.appendChild(o) }) }
+function filterList(){ const q=qEl.value.trim().toLowerCase(); const cat=catFilter.value; const filtered = (JSON.parse(localStorage.getItem('static_ads_cache_v1')||'null')?.data || []).filter(a=>{ if(cat && a.category!==cat) return false; if(!q) return true; return (a.name||'').toLowerCase().includes(q) || (a.code||'').toLowerCase().includes(q) || (a.location||'').toLowerCase().includes(q) }); renderGrid(filtered) }
+qEl.addEventListener('input', debounce(filterList, 250)); catFilter.addEventListener('change', filterList); document.getElementById('refresh').addEventListener('click', ()=>{ localStorage.removeItem('static_ads_cache_v1'); loadAds(); });
+
+/* submission */
 submitBtn.addEventListener('click', async ()=>{
-  submitBtn.disabled = true; submitStatus.textContent = 'جارٍ الإعداد...';
-  const data = {
-    ref_code: genRef(),
-    name: document.getElementById('f_name').value.trim(),
-    description: document.getElementById('f_desc').value.trim(),
-    location: document.getElementById('f_loc').value.trim(),
-    contact: document.getElementById('f_contact').value.trim(),
-    category: document.getElementById('f_cat').value.trim(),
-    created_at: new Date().toISOString()
-  };
+  submitBtn.disabled=true; submitStatus.textContent='جارٍ الإعداد...';
+  const data = { ref_code: genRef(), name: document.getElementById('f_name').value.trim(), description: document.getElementById('f_desc').value.trim(), location: document.getElementById('f_loc').value.trim(), contact: document.getElementById('f_contact').value.trim(), category: document.getElementById('f_cat').value.trim(), created_at: new Date().toISOString() };
   const file = document.getElementById('f_file').files[0];
 
-  // read admin config if present
-  let cfg = {};
-  try { cfg = JSON.parse(localStorage.getItem('static_ads_cfg_v1')||'{}'); } catch(e){ cfg = {}; }
-  const pat = cfg.pat || '';
-  const repo = cfg.repo || '';
-  const branch = cfg.branch || 'main';
-
-  // Try to upload if allowed
+  // admin config (if admin enabled public submissions)
+  let cfg = {}; try{ cfg = JSON.parse(localStorage.getItem('static_ads_cfg_v1')||'{}') }catch(e){ cfg = {} }
+  const pat = cfg.pat || ''; const repo = cfg.repo || ''; const branch = cfg.branch || 'main';
   let uploadedOk = false;
+
   if(pat && repo && cfg.allow_public_submissions){
-    submitStatus.textContent = 'إرسال إلى الريبو...';
-    try {
+    submitStatus.textContent='إرسال إلى الريبو...';
+    try{
       if(file){
-        const imgName = `${data.ref_code}-${file.name.replace(/[^a-z0-9.\-_]/ig,'_')}`;
+        const safeName = file.name.replace(/[^a-z0-9.\-_]/ig,'_');
+        const imgName = `${data.ref_code}-${safeName}`;
         const dataUrl = await toBase64(file); const base64 = dataUrl.split(',')[1];
+        // upload image to static/images/<imgName>
         await putFileToRepo(pat, repo, `static/images/${imgName}`, base64, `upload ${imgName}`, branch, true);
-        data.image = `/static/images/${imgName}`;
+        data.image = `static/images/${imgName}`;
         data.thumb = data.image;
       }
-      const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-      await putFileToRepo(pat, repo, `static/proposals/${data.ref_code}.json`, contentBase64, `proposal ${data.ref_code}`, branch, true);
-      uploadedOk = true;
-      submitStatus.textContent = 'تم الإرسال';
-    } catch(err){
-      console.error('upload failed', err);
-      submitStatus.textContent = 'فشل الإرسال التلقائي';
+      // create proposal JSON
+      const bodyBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+      await putFileToRepo(pat, repo, `static/proposals/${data.ref_code}.json`, bodyBase64, `proposal ${data.ref_code}`, branch, true);
+      uploadedOk = true; submitStatus.textContent='تم الإرسال';
+    }catch(err){
+      console.error('upload failed', err); submitStatus.textContent='فشل الإرسال التلقائي';
     }
   }
 
-  // show ref and fallback or success
-  refCodeEl.textContent = data.ref_code;
-  afterSubmit.style.display = 'block';
-  if(!uploadedOk){
-    fallbackBox.style.display = 'block';
-    fallbackArea.textContent = JSON.stringify(data, null, 2);
-  } else {
-    fallbackBox.style.display = 'none';
-  }
+  // show ref / fallback
+  refCodeEl.textContent = data.ref_code; afterSubmit.style.display='block';
+  if(!uploadedOk){ fallbackBox.style.display='block'; fallbackArea.textContent = JSON.stringify(data, null, 2); } else { fallbackBox.style.display='none' }
 
-  // open WhatsApp with prefilled message to +249927318621
-  try {
-    const message = `مرحباً، وصلني إعلان جديد برمز المتابعة: ${data.ref_code}%0Aالعنوان:%20${encodeURIComponent(data.name||'')}%0Aالموقع:%20${encodeURIComponent(data.location||'')}`;
-    const wa = `https://wa.me/249927318621?text=${message}`;
+  // open WhatsApp to admin with message and log locally
+  try{
+    const message = `مرحباً، وصلني إعلان جديد برمز: ${data.ref_code}%0Aالعنوان:%20${encodeURIComponent(data.name||'')}%0Aالموقع:%20${encodeURIComponent(data.location||'')}`;
+    const wa = `https://wa.me/${WA_NUMBER}?text=${message}`;
     openWaLink.href = wa; openWaLink.innerText = 'فتح WhatsApp لإرسال رمز المتابعة';
     window.open(wa, '_blank');
-    // log locally
-    pushLocalLog({ ref: data.ref_code, ts: new Date().toISOString(), uploadedOk, name: data.name || '', codeUsed: data.ref_code });
-  } catch(e){ console.warn('wa open failed', e); pushLocalLog({ ref: data.ref_code, ts: new Date().toISOString(), uploadedOk, name: data.name || '', codeUsed: data.ref_code }); }
-
-  submitBtn.disabled = false;
+    pushLocalLog({ ref: data.ref_code, ts: new Date().toISOString(), uploadedOk, name: data.name||'', codeUsed: data.ref_code });
+  }catch(e){
+    pushLocalLog({ ref: data.ref_code, ts: new Date().toISOString(), uploadedOk, name: data.name||'', codeUsed: data.ref_code });
+  }
   renderLocalLog();
+  submitBtn.disabled=false;
 });
 
-// copy ref
-copyRefBtn.addEventListener('click', ()=> {
-  const txt = refCodeEl.textContent || '';
-  navigator.clipboard?.writeText(txt).then(()=> alert('تم نسخ الرمز')).catch(()=> alert('نسخ فشل'));
-});
+/* copy */
+copyRefBtn.addEventListener('click', ()=>{ const txt = refCodeEl.textContent||''; navigator.clipboard?.writeText(txt).then(()=>alert('تم النسخ')).catch(()=>alert('نسخ فشل')) })
 
-/* ---------- GitHub helpers (used only when PAT+repo set) ---------- */
+/* tiny GitHub PUT helper (same format used by admin) */
 async function putFileToRepo(pat, repo, path, base64content, message, branch='main', alreadyBase64=false){
   const [owner, repoName] = repo.split('/');
   if(!owner || !repoName) throw new Error('invalid repo format owner/name');
   const url = `https://api.github.com/repos/${owner}/${repoName}/contents/${encodeURIComponent(path)}`;
   const headers = { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' };
-  // get sha if exists
+  // check sha
   let sha = null;
   const q = url + `?ref=${encodeURIComponent(branch)}`;
   const g = await fetch(q, { headers });
-  if(g.status === 200){
-    const jj = await g.json(); sha = jj.sha;
-  }
-  const body = {
-    message,
-    content: alreadyBase64 ? base64content : btoa(unescape(encodeURIComponent(base64content))),
-    branch
-  };
+  if(g.status === 200){ const jj = await g.json(); sha = jj.sha }
+  const body = { message, content: alreadyBase64 ? base64content : btoa(unescape(encodeURIComponent(base64content))), branch };
   if(sha) body.sha = sha;
-  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
-  if(!res.ok){
-    const txt = await res.text(); throw new Error('GitHub API error: ' + res.status + ' ' + txt);
-  }
+  const res = await fetch(url, { method:'PUT', headers, body: JSON.stringify(body) });
+  if(!res.ok){ const txt = await res.text(); throw new Error('GitHub API error: ' + res.status + ' ' + txt) }
   return await res.json();
 }
 
-// helper: file->dataURL
-function toBase64(file){
-  return new Promise((res,rej)=>{
-    const r = new FileReader();
-    r.onload = ()=> res(r.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
+function toBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }) }
 
-/* ---------- local log (last 10) ---------- */
-const LOG_KEY = 'static_ads_sent_refs';
-function pushLocalLog(entry){
-  try{
-    const cur = JSON.parse(localStorage.getItem(LOG_KEY)||'[]');
-    cur.unshift(entry);
-    localStorage.setItem(LOG_KEY, JSON.stringify(cur.slice(0,50)));
-  }catch(e){}
-}
-function getLocalLog(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY)||'[]'); }catch(e){ return []; } }
-function renderLocalLog(){
-  const rows = getLocalLog().slice(0,10);
-  const container = document.getElementById('logRows');
-  container.innerHTML = '';
-  if(rows.length===0){ container.innerHTML = '<div class="mutedSmall">لا توجد إرساليات محلية بعد</div>'; return; }
-  rows.forEach(r=>{
-    const el = document.createElement('div'); el.className='logRow';
-    el.innerHTML = `<div><strong>${escapeHtml(r.ref)}</strong> — ${escapeHtml(r.name || '')}</div><div class="mutedSmall">${new Date(r.ts).toLocaleString()}</div>`;
-    container.appendChild(el);
-  });
-}
-renderLocalLog();
-
-/* ---------- init ---------- */
+/* init */
 loadAds();
 </script>
 </body>
