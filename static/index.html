@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ads (Static)</title>
+<style>
+  body{font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;max-width:900px;margin:20px auto;padding:12px}
+  .ad{display:flex;gap:12px;border:1px solid #eee;padding:12px;border-radius:8px;margin-bottom:12px;align-items:center}
+  .thumb{width:160px;height:100px;object-fit:cover;border-radius:6px;flex-shrink:0}
+  .meta{flex:1}
+  .small{color:#666;font-size:13px}
+  pre{white-space:pre-wrap;background:#fafafa;padding:8px;border-radius:6px}
+</style>
+</head>
+<body>
+  <h1>Ads</h1>
+  <div id="ads">Loading…</div>
+
+<script>
+async function loadAds(){
+  try{
+    const res = await fetch('./ads.json', {cache:'no-cache'});
+    if(!res.ok) throw new Error('Failed to load ads.json: ' + res.status);
+    const ads = await res.json();
+    render(ads);
+  }catch(e){
+    document.getElementById('ads').innerText = 'Error: ' + e.message;
+  }
+}
+function escape(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function render(items){
+  const c = document.getElementById('ads');
+  if(!items || items.length===0){ c.innerHTML = '<i>No ads</i>'; return; }
+  c.innerHTML = items.map(a => {
+    const img = a.image || '';
+    const thumb = a.thumb || img;
+    // Use srcset: thumb (300w) and full (1200w)
+    return `<div class="ad">
+      <img class="thumb" loading="lazy" src="${escape(thumb)}" srcset="${escape(thumb)} 300w, ${escape(img)} 1200w" sizes="(max-width:600px) 300px, 160px" alt="${escape(a.name||'')}">
+      <div class="meta">
+        <strong>${escape(a.name||'Unnamed')}</strong>
+        <div>${escape(a.description||'')}</div>
+        <div class="small">${escape(a.location||'')} · ${escape(a.category||'')}</div>
+        <pre>${escape(a.contact||'')}</pre>
+      </div>
+    </div>`;
+  }).join('');
+}
+loadAds();
+</script>
+</body>
+</html>
