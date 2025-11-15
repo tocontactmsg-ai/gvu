@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>لوحة الإدارة — Ads (static)</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
@@ -22,6 +22,8 @@
   .muted{color:#666;font-size:13px}
   .proposal{background:#fff;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid #eee}
   pre{background:#f7f8fb;padding:8px;border-radius:6px;overflow:auto}
+  #logout{background:#d33}
+  #status{margin-left:8px;color:#666}
 </style>
 </head>
 <body>
@@ -29,11 +31,13 @@
   <h2>لوحة الإدارة — الإعلانات (Static GitHub)</h2>
 
   <div class="top">
-    <input id="cfg_repo" placeholder="owner/repo (مثال: myname/myrepo)" style="width:260px">
-    <input id="cfg_branch" placeholder="branch (default: main)" style="width:140px">
-    <input id="cfg_pat" placeholder="GitHub PAT (جهز: repo scope)" style="width:360px">
+    <input id="cfg_repo" placeholder="owner/repo (تمّ الاكتشاف تلقائياً إذا كانت صفحات GitHub)" style="width:320px">
+    <input id="cfg_branch" placeholder="branch (main)" style="width:100px" value="main">
+    <input id="cfg_pat" placeholder="الصق GitHub PAT هنا (repo scope)" style="width:360px">
     <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="allowPublic"> سماح للإرسال العام</label>
-    <button id="saveCfg">حفظ الإعداد</button>
+    <button id="saveCfg">حفظ</button>
+    <button id="logout">مسح PAT</button>
+    <span id="status" class="muted"></span>
   </div>
 
   <div class="cols">
@@ -78,13 +82,30 @@
 </div>
 
 <script>
-/* ---------- Utilities ---------- */
-function cfgKey(){ return 'static_ads_cfg_v1'; }
-function saveCfgObj(o){ localStorage.setItem(cfgKey(), JSON.stringify(o)); }
-function readCfg(){ try{ return JSON.parse(localStorage.getItem(cfgKey())||'{}'); }catch(e){return {}; } }
+/* ---------- Utils & config auto-detect ---------- */
+const CFG_KEY = 'static_ads_cfg_v1';
+function readCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }catch(e){ return {}; } }
+function saveCfg(o){ localStorage.setItem(CFG_KEY, JSON.stringify(o)); updateStatus('الإعداد محفوظ'); }
+function clearPAT(){ const c = readCfg(); delete c.pat; localStorage.setItem(CFG_KEY, JSON.stringify(c)); updateStatus('PAT محذوف'); setUiFromCfg(); }
+function updateStatus(s){ document.getElementById('status').textContent = s; setTimeout(()=>{ document.getElementById('status').textContent = '' }, 4000); }
+
+// try to auto-detect owner/repo from GitHub Pages url like username.github.io/reponame
+function detectRepoFromUrl(){
+  try{
+    const host = location.hostname; const path = location.pathname.replace(/^\/|\/$/g,'').split('/');
+    if(host.endsWith('github.io')){
+      const owner = host.split('.')[0];
+      const repo = path[0] || owner;
+      return owner + '/' + repo;
+    }
+  }catch(e){}
+  return '';
+}
+
 function setUiFromCfg(){
   const c = readCfg();
-  document.getElementById('cfg_repo').value = c.repo || '';
+  const repoInput = document.getElementById('cfg_repo');
+  repoInput.value = c.repo || detectRepoFromUrl() || '';
   document.getElementById('cfg_branch').value = c.branch || 'main';
   document.getElementById('cfg_pat').value = c.pat || '';
   document.getElementById('allowPublic').checked = !!c.allow_public_submissions;
@@ -96,57 +117,54 @@ document.getElementById('saveCfg').addEventListener('click', ()=>{
   const branch = document.getElementById('cfg_branch').value.trim() || 'main';
   const pat = document.getElementById('cfg_pat').value.trim();
   const allow = document.getElementById('allowPublic').checked;
-  saveCfgObj({ repo, branch, pat, allow_public_submissions: allow });
-  alert('تم الحفظ (محلي في المتصفح فقط)');
+  saveCfg({ repo, branch, pat, allow_public_submissions: allow });
   loadAll();
 });
+document.getElementById('logout').addEventListener('click', ()=> { if(confirm('مسح PAT من المتصفح؟')) { clearPAT(); } });
 
-function btoaUtf8(str){ return btoa(unescape(encodeURIComponent(str))); }
-function utf8ToBase64Obj(obj){ return btoaUtf8(JSON.stringify(obj)); }
-
-/* ---------- GitHub helpers (same pattern as index.html) ---------- */
-async function ghGetFileRaw(repo, path, branch){
-  const r = await fetch(`https://raw.githubusercontent.com/${repo}/${branch}/${path}`);
-  if(!r.ok) return null;
-  return await r.text();
+/* ---------- GitHub helpers (robust) ---------- */
+async function ghRaw(repo, path, branch='main'){
+  try{
+    const url = `https://raw.githubusercontent.com/${repo}/${branch}/${path}`;
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    return await r.text();
+  }catch(e){ return null; }
 }
-async function ghGetContentMeta(pat, repo, path, branch){
-  const [owner, repoName] = repo.split('/');
-  const url = `https://api.github.com/repos/${owner}/${repoName}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`;
-  const res = await fetch(url, { headers: { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' } });
+
+async function ghApiGet(pat, repo, path, branch='main'){
+  const [owner, rname] = repo.split('/');
+  const url = `https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`;
+  const res = await fetch(url, { headers: pat ? { Authorization: 'token ' + pat } : {} });
   if(res.status === 404) return null;
   if(!res.ok) throw new Error('GitHub API error ' + res.status);
   return await res.json();
 }
-async function ghPutFile(pat, repo, path, contentBase64, message, branch, isAlreadyBase64=false){
-  const [owner, repoName] = repo.split('/');
-  const url = `https://api.github.com/repos/${owner}/${repoName}/contents/${encodeURIComponent(path)}`;
+
+async function ghPut(pat, repo, path, base64content, message, branch='main', alreadyBase64=false){
+  const [owner, rname] = repo.split('/');
+  const url = `https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}`;
   const headers = { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' };
-  // get sha if exists
   let sha = null;
-  try {
-    const g = await ghGetContentMeta(pat, repo, path, branch);
-    if(g) sha = g.sha;
-  }catch(e){ /* no-op */ }
-  const body = { message, content: isAlreadyBase64 ? contentBase64 : btoa(unescape(encodeURIComponent(contentBase64))), branch };
+  try{ const meta = await ghApiGet(pat, repo, path, branch); if(meta) sha = meta.sha; } catch(e){}
+  const body = { message, content: alreadyBase64 ? base64content : btoa(unescape(encodeURIComponent(base64content))), branch };
   if(sha) body.sha = sha;
   const res = await fetch(url, { method:'PUT', headers, body: JSON.stringify(body) });
   const j = await res.json();
-  if(!res.ok) throw new Error('put failed: ' + JSON.stringify(j));
+  if(!res.ok) throw new Error('PUT failed: ' + (j && j.message ? j.message : JSON.stringify(j)));
   return j;
 }
-async function ghDeleteFile(pat, repo, path, message, branch){
-  const meta = await ghGetContentMeta(pat, repo, path, branch);
+async function ghDelete(pat, repo, path, message, branch='main'){
+  const meta = await ghApiGet(pat, repo, path, branch);
   if(!meta) throw new Error('file not found');
-  const [owner, repoName] = repo.split('/');
-  const url = `https://api.github.com/repos/${owner}/${repoName}/contents/${encodeURIComponent(path)}`;
-  const headers = { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' };
-  const res = await fetch(url, { method:'DELETE', headers, body: JSON.stringify({ message, sha: meta.sha, branch }) });
-  if(!res.ok) throw new Error('delete failed: ' + (await res.text()));
+  const [owner, rname] = repo.split('/');
+  const url = `https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}`;
+  const res = await fetch(url, { method:'DELETE', headers: { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' }, body: JSON.stringify({ message, sha: meta.sha, branch }) });
+  if(!res.ok) throw new Error('Delete failed: ' + await res.text());
   return await res.json();
 }
 
-/* ---------- Load / render ---------- */
+/* ---------- Load & render ---------- */
 const adsList = document.getElementById('adsList');
 const proposalsList = document.getElementById('proposalsList');
 const detail = document.getElementById('detail');
@@ -156,10 +174,9 @@ async function loadAds(){
   const cfg = readCfg();
   const repo = cfg.repo;
   const branch = cfg.branch || 'main';
-  if(!repo) { adsList.innerHTML = '<div class="muted">حدد repo وPAT ثم اضغط حفظ</div>'; return; }
+  if(!repo){ adsList.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ</div>'; return; }
   try{
-    // read static/ads.json from raw (fast)
-    const raw = await ghGetFileRaw(repo, 'static/ads.json', branch);
+    const raw = await ghRaw(repo, 'static/ads.json', branch);
     const arr = raw ? JSON.parse(raw) : [];
     renderAds(arr);
   }catch(e){
@@ -185,9 +202,8 @@ async function loadProposals(){
   proposalsList.innerHTML = 'تحميل...';
   const cfg = readCfg();
   const repo = cfg.repo; const branch = cfg.branch || 'main';
-  if(!repo){ proposalsList.innerHTML = '<div class="muted">حدد repo وPAT ثم اضغط حفظ</div>'; return; }
+  if(!repo){ proposalsList.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ</div>'; return; }
   try{
-    // list proposals folder via GitHub API
     const [owner, repoName] = repo.split('/');
     const url = `https://api.github.com/repos/${owner}/${repoName}/contents/static/proposals?ref=${encodeURIComponent(branch)}`;
     const res = await fetch(url, { headers: cfg.pat ? { Authorization: 'token ' + cfg.pat } : {} });
@@ -206,20 +222,11 @@ async function loadProposals(){
       el.querySelector('.viewBtn').onclick = ()=> detail.innerHTML = `<pre>${JSON.stringify(item,null,2)}</pre>`;
       el.querySelector('.acceptBtn').onclick = async ()=>{
         if(!confirm('قبول المقترح ونقله إلى ads.json؟')) return;
-        try{
-          // fetch ads.json, append item into array, commit ads.json, then delete proposal file
-          await acceptProposal(cfg, f.name, item);
-          alert('تم القبول');
-          loadAll();
-        }catch(e){ alert('خطأ: ' + e.message); }
+        try{ await acceptProposal(cfg, f.name, item); alert('تم القبول'); loadAll(); } catch(e){ alert('خطأ: ' + e.message); }
       };
       el.querySelector('.rejectBtn').onclick = async ()=>{
         if(!confirm('رفض المقترح وحذفه؟')) return;
-        try{
-          await deleteProposal(cfg, f.name);
-          alert('تم الحذف');
-          loadAll();
-        }catch(e){ alert('خطأ: ' + e.message); }
+        try{ await deleteProposal(cfg, f.name); alert('تم الحذف'); loadAll(); } catch(e){ alert('خطأ: ' + e.message); }
       };
       proposalsList.appendChild(el);
     }
@@ -228,9 +235,9 @@ async function loadProposals(){
   }
 }
 
-/* ---------- actions: edit/add/delete ads.json ---------- */
+/* ---------- Add / Edit / Delete ---------- */
 
-async function openEdit(ad, idx){
+function openEdit(ad, idx){
   document.getElementById('modal').style.display = 'flex';
   document.getElementById('modalTitle').innerText = 'تعديل الإعلان';
   document.getElementById('m_code').value = ad.code || '';
@@ -241,21 +248,17 @@ async function openEdit(ad, idx){
   document.getElementById('m_cat').value = ad.category || '';
 
   document.getElementById('saveBtn').onclick = async ()=>{
-    const cfg = readCfg();
-    const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
+    const cfg = readCfg(); const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
     if(!pat || !repo) return alert('ضع repo وPAT ثم احفظ الإعدادات');
     try{
-      const raw = await ghGetFileRaw(repo, 'static/ads.json', branch);
+      const raw = await ghRaw(repo, 'static/ads.json', branch);
       const arr = raw ? JSON.parse(raw) : [];
-      // update entry at idx
       const file = document.getElementById('m_file').files[0];
       if(file){
-        // upload file first
         const imgName = (document.getElementById('m_code').value.trim() || ('img'+Date.now())) + '-' + file.name.replace(/[^a-z0-9.\-_]/ig,'_');
-        const dataUrl = await toBase64(file);
-        await ghPutFile(pat, repo, `static/images/${imgName}`, dataUrl.split(',')[1], `upload ${imgName}`, branch, true);
-        arr[idx].image = `/static/images/${imgName}`;
-        arr[idx].thumb = `/static/images/${imgName}`;
+        const dataUrl = await toBase64(file); const base64 = dataUrl.split(',')[1];
+        await ghPut(pat, repo, `static/images/${imgName}`, base64, `upload ${imgName}`, branch, true);
+        arr[idx].image = `/static/images/${imgName}`; arr[idx].thumb = arr[idx].image;
       }
       arr[idx] = {
         code: document.getElementById('m_code').value.trim(),
@@ -268,8 +271,7 @@ async function openEdit(ad, idx){
         thumb: arr[idx].thumb || '',
         created_at: arr[idx].created_at || new Date().toISOString()
       };
-      // commit ads.json
-      await ghPutFile(pat, repo, 'static/ads.json', btoaUtf8(JSON.stringify(arr)), 'update ad', branch, true);
+      await ghPut(pat, repo, 'static/ads.json', btoa(unescape(encodeURIComponent(JSON.stringify(arr)))), 'update ad', branch, true);
       alert('تم الحفظ');
       document.getElementById('modal').style.display='none';
       loadAll();
@@ -277,28 +279,23 @@ async function openEdit(ad, idx){
   };
 }
 
-function newAd(){
+document.getElementById('newBtn').onclick = ()=>{
   document.getElementById('modal').style.display='flex';
   document.getElementById('modalTitle').innerText = 'إضافة إعلان جديد';
-  document.getElementById('m_code').value = '';
-  document.getElementById('m_name').value = '';
-  document.getElementById('m_desc').value = '';
-  document.getElementById('m_loc').value = '';
-  document.getElementById('m_contact').value = '';
-  document.getElementById('m_cat').value = '';
+  document.getElementById('m_code').value = ''; document.getElementById('m_name').value = ''; document.getElementById('m_desc').value = '';
+  document.getElementById('m_loc').value = ''; document.getElementById('m_contact').value = ''; document.getElementById('m_cat').value = '';
   document.getElementById('saveBtn').onclick = async ()=>{
-    const cfg = readCfg();
-    const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
+    const cfg = readCfg(); const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
     if(!pat || !repo) return alert('ضع repo وPAT ثم احفظ الإعدادات');
     try{
-      const raw = await ghGetFileRaw(repo, 'static/ads.json', branch);
+      const raw = await ghRaw(repo, 'static/ads.json', branch);
       const arr = raw ? JSON.parse(raw) : [];
       const file = document.getElementById('m_file').files[0];
       let imgPath = '';
       if(file){
         const imgName = 'img' + Date.now() + '-' + file.name.replace(/[^a-z0-9.\-_]/ig,'_');
-        const dataUrl = await toBase64(file);
-        await ghPutFile(pat, repo, `static/images/${imgName}`, dataUrl.split(',')[1], `upload ${imgName}`, branch, true);
+        const dataUrl = await toBase64(file); const base64 = dataUrl.split(',')[1];
+        await ghPut(pat, repo, `static/images/${imgName}`, base64, `upload ${imgName}`, branch, true);
         imgPath = `/static/images/${imgName}`;
       }
       const newObj = {
@@ -313,39 +310,34 @@ function newAd(){
         created_at: new Date().toISOString()
       };
       arr.unshift(newObj);
-      await ghPutFile(pat, repo, 'static/ads.json', btoaUtf8(JSON.stringify(arr)), 'add ad', branch, true);
+      await ghPut(pat, repo, 'static/ads.json', btoa(unescape(encodeURIComponent(JSON.stringify(arr)))), 'add ad', branch, true);
       alert('تم الإضافة');
       document.getElementById('modal').style.display='none';
       loadAll();
     }catch(e){ alert('خطأ: ' + e.message); }
   };
-}
-document.getElementById('newBtn').onclick = newAd;
+};
 
 async function deleteAd(idx){
   if(!confirm('حذف الإعلان؟')) return;
-  const cfg = readCfg();
-  const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
+  const cfg = readCfg(); const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
   if(!pat || !repo) return alert('ضع repo وPAT ثم احفظ الإعدادات');
   try{
-    const raw = await ghGetFileRaw(repo, 'static/ads.json', branch);
+    const raw = await ghRaw(repo, 'static/ads.json', branch);
     const arr = raw ? JSON.parse(raw) : [];
-    // Optionally delete associated image (not done here automatically)
     arr.splice(idx,1);
-    await ghPutFile(pat, repo, 'static/ads.json', btoaUtf8(JSON.stringify(arr)), 'delete ad', branch, true);
+    await ghPut(pat, repo, 'static/ads.json', btoa(unescape(encodeURIComponent(JSON.stringify(arr)))), 'delete ad', branch, true);
     alert('تم الحذف');
     loadAll();
   }catch(e){ alert('خطأ: ' + e.message); }
 }
 
-/* ---------- proposal helpers ---------- */
+/* ---------- proposals helpers ---------- */
 async function acceptProposal(cfg, filename, item){
-  // load ads.json
   const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
   if(!pat) throw new Error('PAT required to accept');
-  const raw = await ghGetFileRaw(repo, 'static/ads.json', branch);
+  const raw = await ghRaw(repo, 'static/ads.json', branch);
   const arr = raw ? JSON.parse(raw) : [];
-  // convert proposal item -> ad object (mapping safe fields)
   const ad = {
     code: item.ref_code || ('p'+Date.now().toString(36)),
     name: item.name || item.title || '',
@@ -358,19 +350,18 @@ async function acceptProposal(cfg, filename, item){
     created_at: new Date().toISOString()
   };
   arr.unshift(ad);
-  await ghPutFile(pat, repo, 'static/ads.json', btoaUtf8(JSON.stringify(arr)), 'accept proposal ' + item.ref_code, branch, true);
-  // delete proposal file
+  await ghPut(pat, repo, 'static/ads.json', btoa(unescape(encodeURIComponent(JSON.stringify(arr)))), 'accept proposal ' + item.ref_code, branch, true);
   await deleteProposal(cfg, filename);
 }
+
 async function deleteProposal(cfg, filename){
   const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
-  await ghDeleteFile(pat, repo, 'static/proposals/' + filename, 'reject proposal ' + filename, branch);
+  return await ghDelete(pat, repo, 'static/proposals/' + filename, 'reject proposal ' + filename, branch);
 }
 
-/* ---------- small helpers ---------- */
-function btoaUtf8(str){ return btoa(unescape(encodeURIComponent(str))); }
-function toBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
+/* ---------- helpers ---------- */
 function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
 
 /* ---------- load all ---------- */
 async function loadAll(){ setUiFromCfg(); loadAds(); loadProposals(); }
