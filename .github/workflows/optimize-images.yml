@@ -12,29 +12,54 @@ jobs:
   optimize:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Setup Node
+      - name: Show repo status (diagnostic)
+        run: |
+          echo "Running on $(uname -a)"
+          echo "PWD: $(pwd)"
+          echo "Files at repo root:"
+          ls -la
+
+      - name: Node & NPM versions
         uses: actions/setup-node@v4
         with:
           node-version: 18
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Run optimizer
-        run: npm run optimize
-
-      - name: Show generated files
+      - name: Print node & npm
         run: |
-          echo "Generated files (static/images):"
+          node -v
+          npm -v
+          npm config get registry
+
+      - name: Install dependencies (npm ci --no-optional)
+        run: |
+          # print package.json so we know it's present
+          echo "--- package.json ---"
+          sed -n '1,200p' package.json || true
+          echo "Running npm ci --no-optional (verbose)"
+          npm ci --no-optional --silent || ( echo "npm ci failed, printing npm-debug log"; cat npm-debug.log || true; exit 2 )
+
+      - name: List originals dir
+        run: |
+          echo "static/images/originals exists?"; ls -la static/images || true
+          ls -la static/images/originals || true
+
+      - name: Run optimizer (verbose)
+        run: |
+          set -o pipefail
+          node scripts/optimize_images.js 2>&1 | sed -u 's/^/[opt] /'
+
+      - name: Show generated files (diagnostic)
+        run: |
+          echo "static/images content:"
           ls -la static/images || true
-          echo "ads.json preview:"
-          head -n 40 static/ads.json || true
+          echo "ads.json size and preview:"
+          wc -c static/ads.json || true
+          sed -n '1,120p' static/ads.json || true
 
       - name: Commit optimized images and ads.json
         uses: stefanzweifel/git-auto-commit-action@v4
