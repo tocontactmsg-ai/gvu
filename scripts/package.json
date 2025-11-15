@@ -1,1 +1,11 @@
-
+{
+  "name": "static-ads-optimizer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "optimize": "node scripts/optimize_images.js"
+  },
+  "dependencies": {
+    "sharp": "^0.32.0"
+  }
+}
