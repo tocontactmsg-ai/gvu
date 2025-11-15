@@ -66,16 +66,42 @@ jobs:
           sed -n '1,240p' package.json || true
           echo "---- package.json (end) ----"
 
-      - name: Install dependencies (resilient)
+                - name: Install dependencies (verbose + fallback)
         id: install
         run: |
           set -o pipefail
-          # Try npm ci first (clean, reproducible)
+          echo "NODE: $(node -v)  NPM: $(npm -v)"
+          echo "--- package.json (top 200 lines) ---"
+          sed -n '1,200p' package.json || true
           echo "--- try npm ci ---"
-          npm ci --no-audit --no-fund --silent && echo "npm ci ok" || (
-            echo "npm ci failed — attempting npm install with unsafe-perm"
-            npm install --unsafe-perm --no-audit --no-fund --silent
-          )
+          npm ci --no-audit --no-fund || {
+            echo "[WARN] npm ci failed with exit $?. Saving npm-debug.log (if any) and trying fallback."
+            # capture npm debug log if present
+            if [ -f npm-debug.log ]; then
+              echo "=== npm-debug.log (first 200 lines) ==="
+              sed -n '1,200p' npm-debug.log || true
+            fi
+            # try fallback with install + unsafe-perm + no-optional
+            echo "--- try npm install --unsafe-perm --no-optional ---"
+            npm install --unsafe-perm --no-optional --no-audit --no-fund || {
+              echo "[ERROR] fallback npm install also failed. Printing any npm logs..."
+              if [ -f npm-debug.log ]; then
+                echo "=== npm-debug.log (full) ==="
+                sed -n '1,400p' npm-debug.log || true
+              fi
+              # Print node-gyp / python availability diagnostic
+              echo "node-gyp and python diagnostics:"
+              node -p "process.versions" || true
+              python3 --version || true
+              gcc --version || true
+              # exit non-zero so the action step shows failure
+              exit 2
+            }
+          }
+          echo "[OK] dependencies installed"
+
+          echo "[OK] dependencies installed"
+
 
       - name: Show originals dir content (diagnostic)
         run: |
