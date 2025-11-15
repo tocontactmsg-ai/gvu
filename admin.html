@@ -107,24 +107,68 @@ window.addEventListener('beforeunload', ()=>{ sessionPat = null; });
 // GitHub helpers use sessionPat (must be set for write operations)
 async function ghApiGet(pat, repo, path, branch='main'){ const [owner,r]=repo.split('/'); const url=`https://api.github.com/repos/${owner}/${r}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`; return fetch(url, { headers: pat ? { Authorization: 'token ' + pat } : {} }); }
 async function ghRaw(repo, path, branch='main'){ const url=`https://raw.githubusercontent.com/${repo}/${branch}/${path}`; const r=await fetch(url); if(!r.ok) return null; return await r.text(); }
-async function ghPut(pat, repo, path, base64content, message, branch='main'){ if(!pat) throw new Error('PAT الجلسة مطلوب'); const [owner,r]=repo.split('/'); const url=`https://api.github.com/repos/${owner}/${r}/contents/${encodeURIComponent(path)}`; const headers={ Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' }; let sha=null; try{ const meta=await ghApiGet(pat,repo,path,branch); if(meta.status===200){ const mj=await meta.json(); sha=mj.sha } }catch(e){} const body={ message, content: base64content, branch }; if(sha) body.sha=sha; const res = await fetch(url,{ method:'PUT', headers, body: JSON.stringify(body) }); const j = await res.json(); if(!res.ok) throw new Error('PUT failed: ' + (j && j.message? j.message : JSON.stringify(j))); return j; }
-async function ghDelete(pat, repo, path, message, branch='main'){ if(!pat) throw new Error('PAT الجلسة مطلوب'); const meta = await ghApiGet(pat,repo,path,branch); if(meta.status !== 200) throw new Error('file not found or permission denied'); const m = await meta.json(); const [owner,r]=repo.split('/'); const url=`https://api.github.com/repos/${owner}/${r}/contents/${encodeURIComponent(path)}`; const res = await fetch(url,{ method:'DELETE', headers:{ Authorization:'token '+pat, Accept:'application/vnd.github.v3+json' }, body: JSON.stringify({ message, sha: m.sha, branch }) }); if(!res.ok) throw new Error('Delete failed: ' + await res.text()); return await res.json(); }
+async function ghPut(pat, repo, path, base64content, message, branch='main', maxRetries = 3){
+  if(!pat) throw new Error('PAT الجلسة مطلوب');
+  const [owner,r] = repo.split('/');
+  const url = `https://api.github.com/repos/${owner}/${r}/contents/${encodeURIComponent(path)}`;
+  const headersBase = {
+    Authorization: 'token ' + pat,
+    Accept: 'application/vnd.github.v3+json',
+    'User-Agent': 'static-ads-admin'
+  };
 
-/* image optimizer (keeps working on main thread but yields) */
-async function optimizeImageFile(file, conf){
-  const { maxWidth, maxHeight, quality, outputType } = conf;
-  const dataUrl = await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
-  const img = await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=dataUrl; });
-  let w = img.width, h = img.height;
-  const scale = Math.min(1, maxWidth / w, maxHeight / h);
-  const tw = Math.round(w * scale), th = Math.round(h * scale);
-  const canvas = document.createElement('canvas'); canvas.width = tw; canvas.height = th;
-  const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.drawImage(img,0,0,tw,th);
-  // yield to keep UI responsive
-  await new Promise(r => setTimeout(r, 10));
-  const blob = await new Promise(res=>canvas.toBlob(res, outputType, quality));
-  const base64 = await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result.split(',')[1]); fr.readAsDataURL(blob); });
-  return { blob, base64, size: blob.size };
+  for(let attempt = 1; attempt <= maxRetries; attempt++){
+    // 1) fetch latest sha (if file exists)
+    let sha = undefined;
+    try {
+      const metaResp = await fetch(`https://api.github.com/repos/${owner}/${r}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`, {
+        headers: { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json', 'User-Agent': 'static-ads-admin' }
+      });
+      if(metaResp.status === 200){
+        const metaJson = await metaResp.json();
+        sha = metaJson.sha;
+      } else if(metaResp.status === 404){
+        sha = undefined; // create
+      } else if(metaResp.status === 401 || metaResp.status === 403){
+        throw new Error('PAT غير صالح أو لا يملك الأذونات الكافية');
+      } else {
+        console.warn('ghPut: unexpected metaResp.status', metaResp.status);
+      }
+    } catch(fetchMetaErr){
+      console.warn('ghPut: meta fetch failed', fetchMetaErr);
+      if(attempt === maxRetries) throw fetchMetaErr;
+    }
+
+    // 2) attempt PUT with the sha (or without sha to create)
+    const body = { message, content: base64content, branch };
+    if(sha) body.sha = sha;
+
+    const putResp = await fetch(url, {
+      method: 'PUT',
+      headers: headersBase,
+      body: JSON.stringify(body)
+    });
+
+    let putJson = null;
+    try { putJson = await putResp.json(); } catch(e){ /* ignore parse errors */ }
+
+    if(putResp.ok){
+      return putJson;
+    }
+
+    const textMsg = (putJson && putJson.message) ? putJson.message.toLowerCase() : '';
+    if(attempt < maxRetries && (putResp.status === 409 || putResp.status === 422 || textMsg.includes('does not match') || textMsg.includes('sha')) ){
+      const backoffMs = 300 * attempt;
+      await new Promise(r => setTimeout(r, backoffMs));
+      continue;
+    }
+
+    if(putResp.status === 401 || putResp.status === 403){
+      throw new Error('PUT failed: PAT غير صالح أو لا يملك الأذونات (' + (putJson && putJson.message ? putJson.message : putResp.status) + ')');
+    }
+
+    throw new Error('PUT failed: ' + ((putJson && putJson.message) ? putJson.message : putResp.status));
+  }
 }
 
 /* delete image helper */
