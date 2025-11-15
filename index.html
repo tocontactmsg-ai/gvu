@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>الدلالة — إعلانات</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
@@ -28,6 +28,7 @@
   .lightbox.open{display:flex}
   .lightbox img{max-width:90%;max-height:90%}
   form .row{display:flex;gap:8px;flex-wrap:wrap}
+  pre{white-space:pre-wrap;background:#fafafa;padding:8px;border-radius:6px}
 </style>
 </head>
 <body>
@@ -80,7 +81,7 @@
           </div>
 
           <div id="fallbackJson" style="display:none;margin-top:8px">
-            <div class="small">إذا لم يتم السماح بالإرسال التلقائي، انسخ هذه البيانات وأرسلها للمدير:</div>
+            <div class="small">إذا لم يُسمح بالإرسال التلقائي، انسخ هذه البيانات وأرسلها للمدير:</div>
             <pre id="fallbackArea"></pre>
           </div>
         </div>
@@ -90,7 +91,7 @@
     <section id="policy" style="display:none">
       <div class="panel">
         <h3>سياسة الاستخدام</h3>
-        <p class="small">... (كما تريد)</p>
+        <p class="small">أدخل بيانات صحيحة. المحتوى المرفوض أو المخالف سيتم حذفه.</p>
       </div>
     </section>
   </main>
@@ -112,8 +113,18 @@ const catFilter = document.getElementById('catFilter');
 
 async function loadAds(){
   try{
-    const res = await fetch('./ads.json', {cache:'no-cache'});
-    const items = await res.json();
+    // try static/ads.json relative path (works when site is served from repo root or static/)
+    const paths = ['./static/ads.json','./ads.json','/static/ads.json'];
+    let items = null;
+    for(const p of paths){
+      try{
+        const res = await fetch(p, {cache:'no-cache'});
+        if(!res.ok) continue;
+        items = await res.json();
+        break;
+      }catch(e){ continue; }
+    }
+    if(!items) throw new Error('ads.json not found');
     ads = items || [];
     ads.sort((a,b)=> (new Date(b.created_at||0)) - (new Date(a.created_at||0)));
     renderGrid(ads);
@@ -170,9 +181,7 @@ const afterSubmit = document.getElementById('afterSubmit');
 const refCodeEl = document.getElementById('refCode');
 const fallbackArea = document.getElementById('fallbackArea');
 const fallbackBox = document.getElementById('fallbackJson');
-const allowPublic = false; // by default, public submissions without admin control are OFF
 
-// helper to generate small unique code
 function genRef(){ return 'r' + Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2,6); }
 
 submitBtn.addEventListener('click', async ()=>{
@@ -187,28 +196,28 @@ submitBtn.addEventListener('click', async ()=>{
     created_at: new Date().toISOString()
   };
   const file = document.getElementById('f_file').files[0];
-  // If admin PAT is present and admin has allowed public submissions (set in admin UI), commit to repo
-  const cfg = localStorage.getItem('STATIC_ADS_CFG');
-  let parsed = {};
-  try { parsed = cfg ? JSON.parse(cfg) : {}; } catch(e){ parsed = {}; }
-  const pat = parsed.pat || '';
-  const repo = parsed.repo || '';
-  const branch = parsed.branch || 'main';
-  if(pat && repo && parsed.allow_public_submissions){
+
+  // read admin config if present
+  let cfg = {};
+  try { cfg = JSON.parse(localStorage.getItem('static_ads_cfg_v1')||'{}'); } catch(e){ cfg = {}; }
+  const pat = cfg.pat || '';
+  const repo = cfg.repo || '';
+  const branch = cfg.branch || 'main';
+  if(pat && repo && cfg.allow_public_submissions){
     submitStatus.textContent = 'إرسال إلى الريبو...';
     try {
-      // upload image first (if any) and put image path into data
+      // upload image if present
       if(file){
         const imgName = `${data.ref_code}-${file.name.replace(/[^a-z0-9.\-_]/ig,'_')}`;
-        const b64 = await toBase64(file);
-        await putFileToRepo(pat, repo, `static/images/${imgName}`, b64.split(',')[1], `upload image ${imgName}`, branch);
+        const dataUrl = await toBase64(file); // data:*/*;base64,...
+        const base64 = dataUrl.split(',')[1];
+        await putFileToRepo(pat, repo, `static/images/${imgName}`, base64, `upload ${imgName}`, branch, true);
         data.image = `/static/images/${imgName}`;
-        // generate thumb (we do not re-encode here); for simplicity use same image as thumb
-        data.thumb = `/static/images/${imgName}`;
+        data.thumb = data.image;
       }
-      // write proposal under static/proposals/<ref>.json
-      const content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-      await putFileToRepo(pat, repo, `static/proposals/${data.ref_code}.json`, content, `proposal ${data.ref_code}`, branch, true);
+      // create proposal file
+      const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+      await putFileToRepo(pat, repo, `static/proposals/${data.ref_code}.json`, contentBase64, `proposal ${data.ref_code}`, branch, true);
       refCodeEl.textContent = data.ref_code;
       afterSubmit.style.display = 'block';
       submitStatus.textContent = 'تم الإرسال';
@@ -217,13 +226,14 @@ submitBtn.addEventListener('click', async ()=>{
       submitStatus.textContent = 'فشل الإرسال';
       fallbackBox.style.display = 'block';
       fallbackArea.textContent = JSON.stringify(data, null, 2);
+      console.error(err);
     } finally {
       submitBtn.disabled = false;
     }
     return;
   }
 
-  // fallback: show JSON the user can copy and send to admin
+  // fallback: show JSON for manual copy
   fallbackBox.style.display = 'block';
   fallbackArea.textContent = JSON.stringify(data, null, 2);
   refCodeEl.textContent = data.ref_code;
@@ -232,7 +242,7 @@ submitBtn.addEventListener('click', async ()=>{
   submitBtn.disabled = false;
 });
 
-// util: convert File -> base64
+// helper: file->dataURL
 function toBase64(file){
   return new Promise((res,rej)=>{
     const r = new FileReader();
@@ -242,37 +252,30 @@ function toBase64(file){
   });
 }
 
-/* ---------- Minimal GitHub file helpers (uses GitHub REST v3) ---------- */
+/* ---------- GitHub API helpers ---------- */
 
-/*
- putFileToRepo(pat, repo, path, base64content, message, branch, contentIsAlreadyBase64=false)
- - pat: personal access token (string)
- - repo: "owner/repo" (string)
- - path: path in repo (like "static/ads.json")
- - base64content: if contentIsAlreadyBase64 true -> raw base64; otherwise it's the data (we used btoa from UTF-8)
- - if contentIsAlreadyBase64==false we will btoa(utf8) automatically
-*/
-async function putFileToRepo(pat, repo, path, base64content, message, branch='main', contentIsAlreadyBase64=false){
+async function putFileToRepo(pat, repo, path, base64content, message, branch='main', alreadyBase64=false){
+  // repo like owner/repo
   const [owner, repoName] = repo.split('/');
-  if(!owner || !repoName) throw new Error('invalid repo format owner/name');
-  // check if file exists to get sha
+  if(!owner || !repoName) throw new Error('invalid repo name');
   const url = `https://api.github.com/repos/${owner}/${repoName}/contents/${encodeURIComponent(path)}`;
   const headers = { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' };
-  // get sha if exists
+
+  // get existing file to obtain sha if present
+  const meta = await fetch(url + `?ref=${encodeURIComponent(branch)}`, { headers });
   let sha = null;
-  const q = url + `?ref=${encodeURIComponent(branch)}`;
-  const g = await fetch(q, { headers });
-  if(g.status === 200){
-    const jj = await g.json();
-    sha = jj.sha;
+  if(meta.status === 200){
+    const mjson = await meta.json();
+    sha = mjson.sha;
   }
+
   const body = {
     message,
-    content: contentIsAlreadyBase64 ? base64content : btoa(unescape(encodeURIComponent(base64content))),
+    content: alreadyBase64 ? base64content : btoa(unescape(encodeURIComponent(base64content))),
     branch
   };
   if(sha) body.sha = sha;
-  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+  const res = await fetch(url, { method:'PUT', headers, body: JSON.stringify(body) });
   if(!res.ok) {
     const txt = await res.text();
     throw new Error('GitHub API error: ' + res.status + ' ' + txt);
@@ -280,22 +283,8 @@ async function putFileToRepo(pat, repo, path, base64content, message, branch='ma
   return await res.json();
 }
 
-async function deleteFileFromRepo(pat, repo, path, message, branch='main'){
-  const [owner, repoName] = repo.split('/');
-  const url = `https://api.github.com/repos/${owner}/${repoName}/contents/${encodeURIComponent(path)}`;
-  const headers = { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' };
-  // need sha
-  const g = await fetch(url + `?ref=${encodeURIComponent(branch)}`, { headers });
-  if(g.status !== 200) throw new Error('file not found to delete');
-  const jj = await g.json();
-  const res = await fetch(url, { method:'DELETE', headers, body: JSON.stringify({ message, sha: jj.sha, branch }) });
-  if(!res.ok) throw new Error('delete failed: ' + await res.text());
-  return await res.json();
-}
-
 /* ---------- init ---------- */
-loadAds(); // loads static/ads.json
-
+loadAds();
 </script>
 </body>
 </html>
