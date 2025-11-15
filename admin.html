@@ -27,6 +27,8 @@
   .field{margin-top:8px}
   .detailRow{display:flex;gap:8px;align-items:center;margin-bottom:8px}
   label.small{font-size:13px;color:#444}
+  .mappings{max-height:200px;overflow:auto;margin-top:8px}
+  .mapRow{display:flex;justify-content:space-between;gap:8px;padding:8px;border-bottom:1px solid #f2f2f2}
 </style>
 </head>
 <body>
@@ -54,6 +56,11 @@
       <div class="panel" style="margin-top:12px">
         <h3>مقترحات الزوار (proposals)</h3>
         <div id="proposalsList"><div class="muted">لم تُحمّل حتى يتم التحقق من PAT و repo</div></div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <h3>Mappings (proposal_ref → final_code)</h3>
+        <div id="mappings" class="mappings"><div class="muted">لم تُحمّل حتى يتم التحقق من PAT و repo</div></div>
       </div>
     </div>
 
@@ -84,11 +91,30 @@
   </div>
 </div>
 
+<!-- modal for accept mapping -->
+<div id="acceptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center">
+  <div style="background:#fff;padding:14px;border-radius:10px;max-width:520px;width:100%">
+    <h3>قبول المقترح وتعيين الرمز النهائي</h3>
+    <div style="margin-top:8px">
+      <label class="small">رمز المقترح (proposal ref)</label>
+      <div id="accept_proposal_ref" style="padding:8px;background:#f7fbff;border-radius:8px"></div>
+    </div>
+    <div style="margin-top:8px">
+      <label class="small">الرمز النهائي المراد استخدامه في الإعلان</label>
+      <input id="final_code_input" placeholder="أدخل الرمز النهائي أو اترك المقترح">
+    </div>
+    <div style="margin-top:12px;text-align:right">
+      <button id="confirmAcceptBtn" style="background:#2a9d8f">قبول وتضمين</button>
+      <button id="cancelAcceptBtn" style="background:#999">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <script>
-/* ---------- Utilities & config ---------- */
+/* ---------- Utilities ---------- */
 const CFG_KEY = 'static_ads_cfg_v1';
 function readCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }catch(e){ return {}; } }
-function saveCfgObj(o){ localStorage.setItem(CFG_KEY, JSON.stringify(o)); }
+function saveCfgObj(o){ localStorage.setItem(CFG_KEY, JSON.stringify(o)); updateStatus('تم الحفظ'); }
 function clearPAT(){ const c = readCfg(); delete c.pat; localStorage.setItem(CFG_KEY, JSON.stringify(c)); updateStatus('PAT محذوف'); setUiFromCfg(); }
 function updateStatus(s){ const el = document.getElementById('status'); el.textContent = s; setTimeout(()=>{ if(el.textContent===s) el.textContent=''; }, 4200); }
 
@@ -123,8 +149,7 @@ async function ghPut(pat, repo, path, base64content, message, branch='main', alr
   try{
     const meta = await ghApiGetWithPat(pat, repo, path, branch);
     if(meta.status === 200) {
-      const mj = await meta.json();
-      sha = mj.sha;
+      const mj = await meta.json(); sha = mj.sha;
     }
   }catch(e){}
   const body = { message, content: alreadyBase64 ? base64content : btoa(unescape(encodeURIComponent(base64content))), branch };
@@ -155,65 +180,44 @@ async function validateAndSave(){
   if(!pat) return alert('الصق PAT صالحاً');
   updateStatus('جارٍ التحقق من PAT ...');
   try{
-    // check access to static/ads.json using PAT (permissions)
     const res = await ghApiGetWithPat(pat, repo, 'static/ads.json', branch);
     if(res.status === 200 || res.status === 404){
-      // 200 -> file exists; 404 -> file missing but token is valid for checking; need to ensure auth succeeded (GitHub returns 404 for not found even with auth)
-      // but 401/403 are failures.
-      if(res.status === 200){
-        // allowed & found
-        saveCfgObj({ repo, branch, pat, allow_public_submissions: allow });
-        updateStatus('تم التحقق والحفظ');
-        setUiFromCfg();
-        loadAll();
-      } else if(res.status === 404){
-        // The token worked but file not found: still ok (we can create ads.json). But confirm token scope by hitting repo endpoint
-        saveCfgObj({ repo, branch, pat, allow_public_submissions: allow });
-        updateStatus('تم التحقق (ads.json غير موجود) - سيتم إنشاؤه عند الحاجة');
-        loadAll();
-      } else {
-        saveCfgObj({ repo, branch, pat, allow_public_submissions: allow });
-        loadAll();
-      }
+      saveCfgObj({ repo, branch, pat, allow_public_submissions: allow });
+      updateStatus('تم التحقق والحفظ');
+      setUiFromCfg();
+      loadAll();
     } else if(res.status === 401 || res.status === 403){
-      const txt = await res.text().catch(()=>'');
-
       updateStatus('فشل التحقق: PAT غير صالح أو لا يوجد إذن');
       alert('فشل التحقق: PAT غير صالح أو لا يوجد إذن (رمز ' + res.status + '). تأكد من الصلاحيات.');
     } else {
-      const txt = await res.text().catch(()=>'');
-      updateStatus('خطأ أثناء التحقق');
-      alert('خطأ أثناء التحقق: ' + res.status + ' ' + txt);
+      updateStatus('خطأ أثناء التحقق: ' + res.status);
+      alert('خطأ أثناء التحقق: ' + res.status);
     }
   }catch(err){
     updateStatus('خطأ في التحقق');
     alert('خطأ عند التحقق: ' + err.message);
   }
 }
-
-/* ---------- UI wiring ---------- */
 document.getElementById('saveCfg').addEventListener('click', validateAndSave);
 document.getElementById('logout').addEventListener('click', ()=> { if(confirm('مسح PAT من المتصفح؟')) { clearPAT(); } });
 
-/* ---------- Load lists (only after valid config saved) ---------- */
+/* ---------- Load & render ---------- */
 const adsList = document.getElementById('adsList');
 const proposalsList = document.getElementById('proposalsList');
 const detail = document.getElementById('detail');
+const mappingsDiv = document.getElementById('mappings');
 
 async function loadAll(){
-  // read stored config and only proceed if PAT+repo exist
   const cfg = readCfg();
-  const repo = cfg.repo; const pat = cfg.pat; const branch = cfg.branch || 'main';
-  if(!repo || !pat){ adsList.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ لرؤية الإعلانات</div>'; proposalsList.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ لرؤية المقترحات</div>'; return; }
-  // token exists; attempt to fetch ads.json and proposals
+  if(!cfg.repo || !cfg.pat){ adsList.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ لرؤية الإعلانات</div>'; proposalsList.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ لرؤية المقترحات</div>'; mappingsDiv.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ لرؤية المappings</div>'; return; }
   await loadAds();
   await loadProposals();
+  await loadMappings();
 }
 
 async function loadAds(){
   adsList.innerHTML = 'تحميل...';
   const cfg = readCfg(); const repo = cfg.repo; const branch = cfg.branch || 'main';
-  if(!repo) { adsList.innerHTML = '<div class="muted">حدد repo وPAT ثم اضغط حفظ</div>'; return; }
   try{
     const raw = await ghRaw(repo, 'static/ads.json', branch);
     const arr = raw ? JSON.parse(raw) : [];
@@ -222,7 +226,6 @@ async function loadAds(){
     adsList.innerHTML = '<div class="muted">فشل جلب ads.json — تحقق من الإعدادات</div>';
   }
 }
-
 function renderAds(items){
   adsList.innerHTML = '';
   if(!items || items.length===0){ adsList.innerHTML = '<div class="muted">لا توجد إعلانات</div>'; return; }
@@ -257,11 +260,11 @@ async function loadProposals(){
       const el = document.createElement('div'); el.className='proposal';
       el.innerHTML = `<div style="display:flex;justify-content:space-between"><div><strong>${escapeHtml(item.ref_code||f.name)}</strong></div><div class="muted">${escapeHtml(item.created_at||'')}</div></div>
         <div class="small">${escapeHtml(item.description||'')}</div>
-        <div style="margin-top:8px"><button class="viewBtn">عرض وتحرير</button><button class="acceptBtn" style="background:#2a9d8f">قبول وتضمين</button><button class="rejectBtn" style="background:#d33">رفض</button></div>`;
+        <div style="margin-top:8px"><button class="viewBtn">عرض وتحرير</button><button class="acceptBtn" style="background:#2a9d8f">قبول</button><button class="rejectBtn" style="background:#d33">رفض</button></div>`;
       el.querySelector('.viewBtn').onclick = ()=> showProposalDetail(item, f.name);
       el.querySelector('.acceptBtn').onclick = async ()=>{
-        if(!confirm('قبول المقترح ونقله إلى ads.json؟')) return;
-        try{ await acceptProposal(readCfg(), f.name, item); alert('تم القبول'); loadAll(); } catch(e){ alert('خطأ: ' + e.message); }
+        // show accept modal to allow final code override
+        showAcceptModal(item, f.name);
       };
       el.querySelector('.rejectBtn').onclick = async ()=>{
         if(!confirm('رفض المقترح وحذفه؟')) return;
@@ -275,14 +278,47 @@ async function loadProposals(){
   }
 }
 
-/* ---------- Show + Edit proposal detail ---------- */
+/* ---------- Mappings ---------- */
+async function loadMappings(){
+  mappingsDiv.innerHTML = 'تحميل...';
+  const cfg = readCfg(); const repo = cfg.repo; const branch = cfg.branch || 'main'; const pat = cfg.pat;
+  if(!repo || !pat) { mappingsDiv.innerHTML = '<div class="muted">حدد repo وPAT ثم اضغط حفظ</div>'; return; }
+  try{
+    const raw = await ghRaw(repo, 'static/mappings.json', branch);
+    const arr = raw ? JSON.parse(raw) : [];
+    renderMappings(arr);
+  }catch(e){
+    mappingsDiv.innerHTML = '<div class="muted">فشل جلب mappings.json</div>';
+  }
+}
+function renderMappings(items){
+  mappingsDiv.innerHTML = '';
+  if(!items || items.length===0){ mappingsDiv.innerHTML = '<div class="muted">لا توجد mappings</div>'; return; }
+  items.forEach((m, idx)=>{
+    const r = document.createElement('div'); r.className='mapRow';
+    r.innerHTML = `<div><strong>${escapeHtml(m.proposal_ref)}</strong> → <strong>${escapeHtml(m.final_code)}</strong><div class="muted">${escapeHtml(m.accepted_at)}</div></div>
+      <div style="display:flex;gap:6px"><button data-idx="${idx}" class="delMap" style="background:#d33">حذف</button></div>`;
+    mappingsDiv.appendChild(r);
+  });
+  document.querySelectorAll('.delMap').forEach(b=> b.onclick = async (e)=>{
+    const idx = +b.dataset.idx;
+    if(!confirm('حذف هذا mapping؟')) return;
+    try{
+      const cfg = readCfg(); const repo = cfg.repo; const branch = cfg.branch||'main'; const pat = cfg.pat;
+      const raw = await ghRaw(repo, 'static/mappings.json', branch); const arr = raw ? JSON.parse(raw) : [];
+      arr.splice(idx,1);
+      await ghPut(pat, repo, 'static/mappings.json', btoa(unescape(encodeURIComponent(JSON.stringify(arr)))), 'delete mapping', branch, true);
+      updateStatus('تم حذف mapping');
+      loadMappings();
+    }catch(err){ alert('خطأ: ' + err.message); }
+  });
+}
+
+/* ---------- Proposal detail (editable) ---------- */
 function showProposalDetail(item, filename){
-  // build editable UI in detail pane
-  const repo = readCfg().repo;
-  const branch = readCfg().branch || 'main';
+  const repo = readCfg().repo; const branch = readCfg().branch || 'main';
   let imgHtml = '';
   if(item.image){
-    // if image path starts with /static or static/ build raw.githubusercontent url
     let imgPath = item.image;
     if(imgPath.startsWith('/')) imgPath = imgPath.replace(/^\//,'');
     if(!imgPath.startsWith('http')) {
@@ -306,7 +342,6 @@ function showProposalDetail(item, filename){
       <button id="deleteProposalBtn" style="background:#d33">رفض وحذف</button>
     </div>
   `;
-  // wire buttons
   document.getElementById('saveProposalBtn').onclick = async ()=>{
     try{
       const updated = await buildProposalFromDetail(item);
@@ -315,22 +350,14 @@ function showProposalDetail(item, filename){
       loadAll();
     }catch(e){ alert('خطأ في حفظ المقترح: ' + e.message); }
   };
-  document.getElementById('acceptProposalBtn').onclick = async ()=>{
-    if(!confirm('قبول وتضمين المقترح؟')) return;
-    try{
-      const updated = await buildProposalFromDetail(item);
-      await acceptProposal(readCfg(), filename, updated);
-      alert('تم القبول والتضمين');
-      loadAll();
-    }catch(e){ alert('خطأ في القبول: ' + e.message); }
-  };
+  document.getElementById('acceptProposalBtn').onclick = ()=> showAcceptModal(item, filename);
   document.getElementById('deleteProposalBtn').onclick = async ()=>{
     if(!confirm('رفض المقترح وحذفه؟')) return;
     try{ await deleteProposal(readCfg(), filename); alert('تم الحذف'); loadAll(); }catch(e){ alert('خطأ: ' + e.message); }
   };
 }
 
-// helper to assemble proposal object from detail inputs (and possibly upload image)
+/* ---------- Build proposal from detail and optionally upload image ---------- */
 async function buildProposalFromDetail(originalItem){
   const cfg = readCfg(); const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
   const updated = Object.assign({}, originalItem);
@@ -352,23 +379,47 @@ async function buildProposalFromDetail(originalItem){
   }
   return updated;
 }
-
-// update proposal JSON file contents
 async function updateProposalFile(cfg, filename, obj){
   const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
   const base64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
   return await ghPut(pat, repo, `static/proposals/${filename}`, base64, `update proposal ${obj.ref_code||filename}`, branch, true);
 }
 
-/* ---------- accept / delete ---------- */
-async function acceptProposal(cfg, filename, item){
+/* ---------- Accept flow (modal to choose final_code) ---------- */
+function showAcceptModal(item, filename){
+  const acceptModal = document.getElementById('acceptModal');
+  document.getElementById('accept_proposal_ref').innerText = item.ref_code || filename;
+  document.getElementById('final_code_input').value = item.ref_code || '';
+  acceptModal.style.display = 'flex';
+
+  document.getElementById('cancelAcceptBtn').onclick = ()=> acceptModal.style.display = 'none';
+  document.getElementById('confirmAcceptBtn').onclick = async ()=>{
+    const final = document.getElementById('final_code_input').value.trim() || (item.ref_code || ('ad'+Date.now().toString(36)));
+    acceptModal.style.display = 'none';
+    try{
+      // first ensure proposal object updated with latest edits from detail pane if visible
+      let updated = item;
+      if(document.getElementById('p_name')){ // if detail present, build updated object
+        updated = await buildProposalFromDetail(item);
+      }
+      // set the chosen final code on the ad
+      updated.final_code = final;
+      // accept: insert into ads.json and add mapping
+      await acceptProposalWithMapping(readCfg(), filename, updated, final);
+      alert('تم القبول والتضمين (الرمز النهائي: ' + final + ')');
+      loadAll();
+    }catch(e){ alert('خطأ أثناء القبول: ' + e.message); }
+  };
+}
+
+async function acceptProposalWithMapping(cfg, filename, item, final_code){
   const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
   if(!pat) throw new Error('PAT مطلوب');
-  // load ads.json, insert item (sanitizing fields)
+  // load ads.json
   const raw = await ghRaw(repo, 'static/ads.json', branch);
   const arr = raw ? JSON.parse(raw) : [];
   const ad = {
-    code: item.ref_code || ('p'+Date.now().toString(36)),
+    code: final_code,
     name: item.name || '',
     description: item.description || '',
     location: item.location || '',
@@ -380,17 +431,22 @@ async function acceptProposal(cfg, filename, item){
   };
   arr.unshift(ad);
   await ghPut(pat, repo, 'static/ads.json', btoa(unescape(encodeURIComponent(JSON.stringify(arr)))), 'accept proposal ' + (item.ref_code||filename), branch, true);
+  // update mappings.json
+  const rawMap = await ghRaw(repo, 'static/mappings.json', branch);
+  const maps = rawMap ? JSON.parse(rawMap) : [];
+  maps.unshift({ proposal_ref: item.ref_code || filename, final_code: final_code, accepted_at: new Date().toISOString() });
+  await ghPut(pat, repo, 'static/mappings.json', btoa(unescape(encodeURIComponent(JSON.stringify(maps)))), 'add mapping ' + (item.ref_code||filename), branch, true);
   // delete proposal file
   await deleteProposal(cfg, filename);
 }
 
+/* ---------- Delete proposal ---------- */
 async function deleteProposal(cfg, filename){
   const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
   return await ghDelete(pat, repo, 'static/proposals/' + filename, 'reject proposal ' + filename, branch);
 }
 
-/* ---------- Add / edit / delete ads ---------- */
-
+/* ---------- Add/edit/delete ads ---------- */
 document.getElementById('newBtn').onclick = ()=> openAddModal();
 
 function openAddModal(){
@@ -431,7 +487,6 @@ function openAddModal(){
     }catch(e){ alert('خطأ: ' + e.message); }
   };
 }
-
 function openEdit(ad, idx){
   document.getElementById('modal').style.display = 'flex';
   document.getElementById('modalTitle').innerText = 'تعديل الإعلان';
@@ -495,24 +550,19 @@ function toBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(
 
 /* ---------- initial load ---------- */
 async function loadAllInit(){
-  // if a config with PAT exists, try using it to load lists
   setUiFromCfg();
   const cfg = readCfg();
   if(cfg.repo && cfg.pat) {
-    // attempt a quick validation call (silent)
     try{
       const check = await ghApiGetWithPat(cfg.pat, cfg.repo, 'static/ads.json', cfg.branch||'main');
-      if(check.status === 401 || check.status === 403) {
-        updateStatus('PAT غير صالح أو لم يُمنح الإذن');
-        return;
-      }
-      // OK load
+      if(check.status === 401 || check.status === 403) { updateStatus('PAT غير صالح أو لم يُمنح الإذن'); return; }
       loadAll();
     }catch(e){}
   }
 }
 loadAllInit();
 
+document.getElementById('cancelBtn').onclick = ()=> document.getElementById('modal').style.display = 'none';
 </script>
 </body>
 </html>
