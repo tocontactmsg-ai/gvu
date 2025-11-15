@@ -1,4 +1,4 @@
-name: Optimize images (fast)
+name: Optimize images (resilient + PR)
 
 on:
   push:
@@ -8,64 +8,137 @@ on:
       - 'package.json'
   workflow_dispatch:
 
+env:
+  # Base branch to create PR against (usually main or master). Change if needed.
+  BASE_BRANCH: main
+
 jobs:
-  check-and-optimize:
+  optimize:
     runs-on: ubuntu-latest
+    concurrency:
+      group: optimize-images
+      cancel-in-progress: false
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          persist-credentials: true
           fetch-depth: 0
+          persist-credentials: true
 
-      - name: Detect changed originals
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            originals:
-              - 'static/images/originals/**'
-
-      - name: Skip if no originals changed
-        if: steps.changes.outputs.originals == 'false' && github.event_name != 'workflow_dispatch'
+      - name: Diagnostic — repo top files
         run: |
-          echo "No originals changed. Skipping optimizer."
-      
-      - name: Setup Node
-        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
+          echo "Running on: $(uname -a)"
+          echo "Working dir: $(pwd)"
+          echo "Git HEAD:"
+          git rev-parse --abbrev-ref HEAD || true
+          echo "--- ls repo root ---"
+          ls -la || true
+
+      - name: Show Node & NPM info
         uses: actions/setup-node@v4
         with:
           node-version: 18
+      - name: Print node & npm
+        run: |
+          node -v
+          npm -v
+          npm config get registry || true
 
-      - name: Cache npm and node_modules
-        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
+      - name: Ensure system build deps (helps node-gyp / native modules)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y build-essential python3 curl || true
+
+      - name: Cache npm & node_modules
         uses: actions/cache@v4
         with:
           path: |
             ~/.npm
             node_modules
-            package-lock.json
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install dependencies (fast)
-        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
+      - name: Print package.json (diagnostic)
         run: |
-          npm ci --no-audit --no-fund --silent
+          echo "---- package.json (start) ----"
+          sed -n '1,240p' package.json || true
+          echo "---- package.json (end) ----"
 
-      - name: Run optimizer
-        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
+      - name: Install dependencies (resilient)
+        id: install
         run: |
+          set -o pipefail
+          # Try npm ci first (clean, reproducible)
+          echo "--- try npm ci ---"
+          npm ci --no-audit --no-fund --silent && echo "npm ci ok" || (
+            echo "npm ci failed — attempting npm install with unsafe-perm"
+            npm install --unsafe-perm --no-audit --no-fund --silent
+          )
+
+      - name: Show originals dir content (diagnostic)
+        run: |
+          echo "Listing static/images and originals:"
+          ls -la static/images || true
+          ls -la static/images/originals || true
+
+      - name: Optimize images (run script)
+        id: optimize
+        run: |
+          set -o pipefail
           echo "[opt] Running optimizer"
           node scripts/optimize_images.js 2>&1 | sed -u 's/^/[opt] /'
 
-      - name: Commit generated files
-        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
-        uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Show generated files
+        run: |
+          echo "static/images content:"
+          ls -la static/images || true
+          echo "ads.json info:"
+          wc -c static/ads.json || true
+          sed -n '1,120p' static/ads.json || true
+
+      - name: Create branch with optimized files
+        id: create_branch
+        run: |
+          TS=$(date -u +%Y%m%d%H%M%S)
+          BR="optimize-images/${TS}"
+          echo "BRANCH=${BR}" >> $GITHUB_ENV
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${BR}"
+          # add only the generated images and ads.json
+          git add -f static/images || true
+          git add -f static/ads.json || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit. Exiting early."
+            echo "no_changes=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          git commit -m "chore: optimize images and regenerate ads.json [ci skip]" || true
+          # push branch
+          git push --set-upstream origin "${BR}"
+
+      - name: Create Pull Request (if commits were made)
+        if: steps.create_branch.outputs.no_changes != 'true'
+        uses: peter-evans/create-pull-request@v5
         with:
-          commit_message: "chore: optimize images and regenerate ads.json (fast)"
-          file_pattern: "static/images/**, static/ads.json"
-          branch: ${{ github.ref_name }}
-          author_name: "github-actions[bot]"
-          author_email: "github-actions[bot]@users.noreply.github.com"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: optimize images and regenerate ads.json"
+          branch: ${{ env.BRANCH }}
+          base: ${{ env.BASE_BRANCH }}
+          title: "chore: optimize images and regenerate ads.json"
+          body: |
+            This PR was created automatically by the Optimize images workflow.
+            It contains optimized webp images and an updated static/ads.json.
+            Review and merge when ready.
+          labels: automated, optimize-images
+          draft: false
+
+      - name: Final status
+        run: |
+          if [ "${{ steps.create_branch.outputs.no_changes }}" = "true" ]; then
+            echo "No generated changes -> nothing to PR."
+          else
+            echo "PR created (or branch pushed). Check Pull Requests for review."
+          fi
