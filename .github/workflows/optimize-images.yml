@@ -1,0 +1,46 @@
+name: Optimize images and generate ads.json
+
+on:
+  push:
+    paths:
+      - 'static/images/originals/**'
+      - 'scripts/optimize_images.js'
+      - 'package.json'
+  workflow_dispatch:
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run optimizer
+        run: npm run optimize
+
+      - name: Show generated files
+        run: |
+          echo "Generated files (static/images):"
+          ls -la static/images || true
+          echo "ads.json preview:"
+          head -n 40 static/ads.json || true
+
+      - name: Commit optimized images and ads.json
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore: optimize images and regenerate ads.json"
+          file_pattern: "static/images/**, static/ads.json"
+          branch: ${{ github.ref_name }}
+          author_name: "github-actions[bot]"
+          author_email: "github-actions[bot]@users.noreply.github.com"
