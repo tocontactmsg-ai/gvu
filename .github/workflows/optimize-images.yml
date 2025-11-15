@@ -1,4 +1,4 @@
-name: Optimize images and generate ads.json
+name: Optimize images (fast)
 
 on:
   push:
@@ -9,62 +9,62 @@ on:
   workflow_dispatch:
 
 jobs:
-  optimize:
+  check-and-optimize:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Show repo status (diagnostic)
-        run: |
-          echo "Running on $(uname -a)"
-          echo "PWD: $(pwd)"
-          echo "Files at repo root:"
-          ls -la
+      - name: Detect changed originals
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            originals:
+              - 'static/images/originals/**'
 
-      - name: Node & NPM versions
+      - name: Skip if no originals changed
+        if: steps.changes.outputs.originals == 'false' && github.event_name != 'workflow_dispatch'
+        run: |
+          echo "No originals changed. Skipping optimizer."
+      
+      - name: Setup Node
+        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/setup-node@v4
         with:
           node-version: 18
-      - name: Print node & npm
-        run: |
-          node -v
-          npm -v
-          npm config get registry
 
-      - name: Install dependencies (npm ci --no-optional)
-        run: |
-          # print package.json so we know it's present
-          echo "--- package.json ---"
-          sed -n '1,200p' package.json || true
-          echo "Running npm ci --no-optional (verbose)"
-          npm ci --no-optional --silent || ( echo "npm ci failed, printing npm-debug log"; cat npm-debug.log || true; exit 2 )
+      - name: Cache npm and node_modules
+        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            package-lock.json
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-      - name: List originals dir
+      - name: Install dependencies (fast)
+        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
         run: |
-          echo "static/images/originals exists?"; ls -la static/images || true
-          ls -la static/images/originals || true
+          npm ci --no-audit --no-fund --silent
 
-      - name: Run optimizer (verbose)
+      - name: Run optimizer
+        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
         run: |
-          set -o pipefail
+          echo "[opt] Running optimizer"
           node scripts/optimize_images.js 2>&1 | sed -u 's/^/[opt] /'
 
-      - name: Show generated files (diagnostic)
-        run: |
-          echo "static/images content:"
-          ls -la static/images || true
-          echo "ads.json size and preview:"
-          wc -c static/ads.json || true
-          sed -n '1,120p' static/ads.json || true
-
-      - name: Commit optimized images and ads.json
+      - name: Commit generated files
+        if: steps.changes.outputs.originals == 'true' || github.event_name == 'workflow_dispatch'
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "chore: optimize images and regenerate ads.json"
+          commit_message: "chore: optimize images and regenerate ads.json (fast)"
           file_pattern: "static/images/**, static/ads.json"
           branch: ${{ github.ref_name }}
           author_name: "github-actions[bot]"
