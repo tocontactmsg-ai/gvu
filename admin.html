@@ -73,7 +73,6 @@
   </div>
 </div>
 
-<!-- accept modal -->
 <div id="acceptModal" class="acceptModal">
   <div class="box">
     <div style="margin-bottom:8px">أدخل الرمز النهائي الذي تريد استخدامه (اتركه فارغاً لاستخدام رمز المقترح):</div>
@@ -86,76 +85,62 @@
 </div>
 
 <script>
-/* Minimal, robust admin.js
-   - Validates PAT + repo before loading lists
-   - Lists proposals and ads
-   - Preview images via raw.githubusercontent
-   - Edit/save proposal, accept (add to ads.json + mappings.json), reject (delete)
-   - Add/edit/delete ads
-*/
-
+/* ---------- Admin script with optimizer & delete-image ---------- */
 const CFG_KEY = 'static_ads_cfg_v1';
+const OPT_DEFAULTS = { maxWidth: 1600, maxHeight: 1200, quality: 0.78, outputType: 'image/webp' };
 
-// helpers
 function readCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)||'{}') }catch(e){ return {} } }
 function saveCfg(cfg){ localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
-function updateStatus(msg){ console.log('[status]', msg); /* visible feedback via small alerts can be added */ }
+function updateStatus(msg){ console.log('[status]', msg); }
 function normalizePath(p){ if(!p) return ''; return p.startsWith('/') ? p.slice(1) : p; }
 
-function setUiFromCfg(){
-  const c = readCfg();
-  document.getElementById('cfg_repo').value = c.repo || '';
-  document.getElementById('cfg_branch').value = c.branch || 'main';
-  document.getElementById('cfg_pat').value = c.pat || '';
-  document.getElementById('allowPublic').checked = !!c.allow_public_submissions;
-}
+function setUiFromCfg(){ const c = readCfg(); document.getElementById('cfg_repo').value = c.repo || ''; document.getElementById('cfg_branch').value = c.branch || 'main'; document.getElementById('cfg_pat').value = c.pat || ''; document.getElementById('allowPublic').checked = !!c.allow_public_submissions; }
 setUiFromCfg();
 
-// GitHub helpers
-async function ghApiGetWithPat(pat, repo, path, branch='main'){
-  const [owner, rname] = repo.split('/');
-  const url = `https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`;
-  return fetch(url, { headers: pat ? { Authorization: 'token ' + pat } : {} });
-}
-async function ghRaw(repo, path, branch='main'){
-  const url = `https://raw.githubusercontent.com/${repo}/${branch}/${path}`;
-  const r = await fetch(url);
-  if(!r.ok) return null;
-  return await r.text();
-}
-async function ghPut(pat, repo, path, base64content, message, branch='main', alreadyBase64=false){
-  const [owner, rname] = repo.split('/');
-  const url = `https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}`;
-  const headers = { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' };
-  let sha = null;
-  try{
-    const meta = await ghApiGetWithPat(pat, repo, path, branch);
-    if(meta.status === 200) { const mj = await meta.json(); sha = mj.sha; }
-  }catch(e){}
-  const body = { message, content: alreadyBase64 ? base64content : btoa(unescape(encodeURIComponent(base64content))), branch };
-  if(sha) body.sha = sha;
-  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
-  const j = await res.json();
-  if(!res.ok) throw new Error('PUT failed: ' + (j && j.message ? j.message : JSON.stringify(j)));
-  return j;
-}
-async function ghDelete(pat, repo, path, message, branch='main'){
-  const metaRes = await ghApiGetWithPat(pat, repo, path, branch);
-  if(metaRes.status !== 200) throw new Error('file not found or permission denied');
-  const meta = await metaRes.json();
-  const [owner, rname] = repo.split('/');
-  const url = `https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}`;
-  const res = await fetch(url, { method:'DELETE', headers: { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' }, body: JSON.stringify({ message, sha: meta.sha, branch }) });
-  if(!res.ok) throw new Error('Delete failed: ' + await res.text());
-  return await res.json();
+/* ---------- GitHub helpers ---------- */
+async function ghApiGetWithPat(pat, repo, path, branch='main'){ const [owner,rname]=repo.split('/'); const url=`https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`; return fetch(url,{headers: pat?{Authorization:'token '+pat}:{}}); }
+async function ghRaw(repo, path, branch='main'){ const url=`https://raw.githubusercontent.com/${repo}/${branch}/${path}`; const r=await fetch(url); if(!r.ok) return null; return await r.text(); }
+async function ghPut(pat, repo, path, base64content, message, branch='main', alreadyBase64=false){ const [owner,rname]=repo.split('/'); const url=`https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}`; const headers={Authorization:'token '+pat,Accept:'application/vnd.github.v3+json'}; let sha=null; try{ const meta=await ghApiGetWithPat(pat,repo,path,branch); if(meta.status===200){ const mj=await meta.json(); sha=mj.sha } }catch(e){} const body={message,content: alreadyBase64? base64content : btoa(unescape(encodeURIComponent(base64content))), branch}; if(sha) body.sha=sha; const res=await fetch(url,{method:'PUT',headers,body:JSON.stringify(body)}); const j=await res.json(); if(!res.ok) throw new Error('PUT failed: ' + (j && j.message? j.message: JSON.stringify(j))); return j; }
+async function ghDelete(pat, repo, path, message, branch='main'){ const metaRes = await ghApiGetWithPat(pat,repo,path,branch); if(metaRes.status !== 200) throw new Error('file not found or permission denied'); const meta = await metaRes.json(); const [owner,rname]=repo.split('/'); const url=`https://api.github.com/repos/${owner}/${rname}/contents/${encodeURIComponent(path)}`; const res = await fetch(url, { method:'DELETE', headers: { Authorization: 'token ' + pat, Accept: 'application/vnd.github.v3+json' }, body: JSON.stringify({ message, sha: meta.sha, branch }) }); if(!res.ok) throw new Error('Delete failed: ' + await res.text()); return await res.json(); }
+
+/* ---------- Image optimizer (same as index) ---------- */
+async function optimizeImageFile(file, options = {}) {
+  const { maxWidth = OPT_DEFAULTS.maxWidth, maxHeight = OPT_DEFAULTS.maxHeight, quality = OPT_DEFAULTS.quality, outputType = OPT_DEFAULTS.outputType } = options;
+  const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = dataUrl; });
+  let { width, height } = img;
+  const scale = Math.min(1, maxWidth / width, maxHeight / height);
+  const targetW = Math.round(width * scale);
+  const targetH = Math.round(height * scale);
+  const canvas = document.createElement('canvas'); canvas.width = targetW; canvas.height = targetH;
+  const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img,0,0,targetW,targetH);
+  const blob = await new Promise((res) => canvas.toBlob(res, outputType, quality));
+  const base64 = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result.split(',')[1]); fr.readAsDataURL(blob); });
+  return { blob, base64, size: blob.size, width: targetW, height: targetH };
 }
 
-// UI wiring
+/* ---------- Delete image helper ---------- */
+async function maybeDeleteImage(cfg, imagePath){
+  if(!imagePath) return;
+  const p = normalizePath(imagePath);
+  if(!p) return;
+  try{
+    const metaRes = await ghApiGetWithPat(cfg.pat, cfg.repo, p, cfg.branch || 'main');
+    if(metaRes.status === 200){
+      await ghDelete(cfg.pat, cfg.repo, p, 'delete image ' + p, cfg.branch || 'main');
+      console.log('deleted image', p);
+    } else {
+      console.log('image not found or no permission to delete', p, metaRes.status);
+    }
+  }catch(e){ console.warn('maybeDeleteImage failed', e); }
+}
+
+/* ---------- UI wiring ---------- */
 document.getElementById('saveBtn').addEventListener('click', validateAndSave);
-document.getElementById('clearBtn').addEventListener('click', ()=>{ if(confirm('مسح PAT من المتصفح؟')){ const c = readCfg(); delete c.pat; saveCfg(c); setUiFromCfg(); alert('PAT محذوف من المتصفح'); } });
+document.getElementById('clearBtn').addEventListener('click', ()=>{ if(confirm('مسح PAT من المتصفح؟')){ const c = readCfg(); delete c.pat; saveCfg(c); setUiFromCfg(); alert('PAT محذوف'); } });
 document.getElementById('newAdBtn').addEventListener('click', ()=> openAdModal('new'));
 
-// validate PAT+repo then load lists
+/* ---------- Validate & load lists ---------- */
 async function validateAndSave(){
   const repo = document.getElementById('cfg_repo').value.trim();
   const branch = document.getElementById('cfg_branch').value.trim() || 'main';
@@ -163,40 +148,25 @@ async function validateAndSave(){
   const allow = document.getElementById('allowPublic').checked;
   if(!repo) return alert('أدخل owner/repo');
   if(!pat) return alert('الصق PAT صالحاً');
-
-  updateStatus('التحقق من PAT ...');
+  updateStatus('جارٍ التحقق...');
   try{
     const res = await ghApiGetWithPat(pat, repo, 'static/ads.json', branch);
     if(res.status === 200 || res.status === 404){
-      // token valid (200 file exists; 404 file not found but token works)
       saveCfg({ repo, branch, pat, allow_public_submissions: allow });
       setUiFromCfg();
       updateStatus('تم التحقق والحفظ');
       loadAll();
     } else if(res.status === 401 || res.status === 403){
-      updateStatus('فشل التحقق: PAT غير صالح أو لا يوجد إذن');
-      alert('فشل التحقق: PAT غير صالح أو لا يوجد إذن (رمز ' + res.status + '). تأكد من الصلاحيات.');
-    } else {
-      const txt = await res.text().catch(()=> '');
-      updateStatus('خطأ أثناء التحقق: ' + res.status);
-      alert('خطأ أثناء التحقق: ' + res.status + ' ' + txt);
-    }
-  }catch(err){
-    updateStatus('خطأ في التحقق');
-    alert('خطأ عند التحقق: ' + err.message);
-  }
+      updateStatus('فشل التحقق: PAT غير صالح أو لا يوجد إذن'); alert('فشل التحقق: PAT غير صالح أو لا يوجد إذن');
+    } else { const txt = await res.text().catch(()=>''); updateStatus('خطأ: ' + res.status); alert('خطأ: ' + res.status + ' ' + txt); }
+  }catch(err){ updateStatus('خطأ في التحقق'); alert('خطأ عند التحقق: ' + err.message); }
 }
 
-// load lists (only after config present)
-const adsListEl = document.getElementById('adsList');
-const proposalsListEl = document.getElementById('proposalsList');
-const detailEl = document.getElementById('detail');
+const adsListEl = document.getElementById('adsList'), proposalsListEl = document.getElementById('proposalsList'), detailEl = document.getElementById('detail');
 
 async function loadAll(){
-  const cfg = readCfg();
-  if(!cfg.repo || !cfg.pat){ adsListEl.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ لرؤية الإعلانات</div>'; proposalsListEl.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ لرؤية المقترحات</div>'; return; }
-  await loadAds();
-  await loadProposals();
+  const cfg = readCfg(); if(!cfg.repo || !cfg.pat){ adsListEl.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ</div>'; proposalsListEl.innerHTML = '<div class="muted">أدخل repo وPAT ثم اضغط حفظ</div>'; return; }
+  await loadAds(); await loadProposals();
 }
 
 async function loadAds(){
@@ -206,24 +176,21 @@ async function loadAds(){
     const raw = await ghRaw(cfg.repo, 'static/ads.json', cfg.branch || 'main');
     const arr = raw ? JSON.parse(raw) : [];
     renderAds(arr);
-  }catch(e){
-    console.error(e);
-    adsListEl.innerHTML = '<div class="muted">فشل جلب ads.json</div>';
-  }
+  }catch(e){ console.error(e); adsListEl.innerHTML = '<div class="muted">فشل جلب ads.json</div>'; }
 }
 
 function renderAds(items){
   adsListEl.innerHTML = '';
   if(!items || items.length === 0){ adsListEl.innerHTML = '<div class="muted">لا توجد إعلانات</div>'; return; }
   items.forEach((a, idx) => {
-    const r = document.createElement('div'); r.className = 'item';
+    const el = document.createElement('div'); el.className='item';
     const thumb = normalizePath(a.thumb || a.image || '');
-    r.innerHTML = `<img class="thumb" src="${thumb}" onerror="this.style.display='none'"><div class="meta"><strong>${escapeHtml(a.name||a.code||('ad'+idx))}</strong><div class="muted">${escapeHtml(a.description||'')}</div></div>
+    el.innerHTML = `<img class="thumb" src="${thumb}" onerror="this.style.display='none'"><div class="meta"><strong>${escapeHtml(a.name||a.code||('ad'+idx))}</strong><div class="muted">${escapeHtml(a.description||'')}</div></div>
       <div class="actions"><button class="viewAdBtn">عرض</button><button class="editAdBtn">تعديل</button><button class="delAdBtn danger">حذف</button></div>`;
-    r.querySelector('.viewAdBtn').onclick = ()=> showAdDetail(a, idx);
-    r.querySelector('.editAdBtn').onclick = ()=> openAdModal('edit', a, idx);
-    r.querySelector('.delAdBtn').onclick = ()=> deleteAd(idx);
-    adsListEl.appendChild(r);
+    el.querySelector('.viewAdBtn').onclick = ()=> showAdDetail(a, idx);
+    el.querySelector('.editAdBtn').onclick = ()=> openAdModal('edit', a, idx);
+    el.querySelector('.delAdBtn').onclick = ()=> deleteAd(idx);
+    adsListEl.appendChild(el);
   });
 }
 
@@ -243,7 +210,7 @@ async function loadProposals(){
     for(const f of jsonFiles){
       const raw = await fetch(f.download_url, { headers: { Authorization: 'token ' + cfg.pat } }).then(r => r.json()).catch(()=>null);
       const item = raw || {};
-      const el = document.createElement('div'); el.className = 'item proposal';
+      const el = document.createElement('div'); el.className='item proposal';
       el.innerHTML = `<div style="flex:1">
         <strong>${escapeHtml(item.ref_code || f.name)}</strong>
         <div class="muted">${escapeHtml(item.created_at||'')}</div>
@@ -256,17 +223,14 @@ async function loadProposals(){
       </div>`;
       el.querySelector('.viewPropBtn').onclick = ()=> showProposalDetail(item, f.name);
       el.querySelector('.acceptPropBtn').onclick = ()=> startAcceptFlow(item, f.name);
-      el.querySelector('.rejectPropBtn').onclick = async ()=> { if(!confirm('رفض المقترح وحذفه؟')) return; try{ await deleteProposal(cfg, f.name); alert('تم الحذف'); loadAll(); }catch(e){ alert('خطأ: ' + e.message); } };
+      el.querySelector('.rejectPropBtn').onclick = async ()=> { if(!confirm('رفض المقترح وحذفه؟')) return; try{ await deleteProposal(cfg, f.name); alert('تم الحذف'); loadAll(); }catch(e){ alert('خطأ: ' + e.message) } };
       proposalsListEl.appendChild(el);
     }
     if(jsonFiles.length === 0) proposalsListEl.innerHTML = '<div class="muted">لا توجد مقترحات</div>';
-  }catch(e){
-    console.error(e);
-    proposalsListEl.innerHTML = '<div class="muted">فشل جلب المقترحات</div>';
-  }
+  }catch(e){ console.error(e); proposalsListEl.innerHTML = '<div class="muted">فشل جلب المقترحات</div>'; }
 }
 
-/* --------- detail / edit proposal --------- */
+/* ---------- Proposal detail (view/edit) ---------- */
 function showAdDetail(ad, idx){
   const repo = readCfg().repo; const branch = readCfg().branch || 'main';
   let imgHtml = '';
@@ -304,7 +268,7 @@ function showProposalDetail(item, filename){
       <button id="deleteProposalBtn" style="background:var(--danger)">رفض وحذف</button>
     </div>
   `;
-  document.getElementById('saveProposalBtn').onclick = async ()=>{
+  document.getElementById('saveProposalBtn').onclick = async ()=> {
     try{
       const updated = await buildProposalFromDetail(item);
       await updateProposalFile(readCfg(), filename, updated);
@@ -313,9 +277,10 @@ function showProposalDetail(item, filename){
     }catch(e){ alert('خطأ في حفظ المقترح: ' + e.message); console.error(e); }
   };
   document.getElementById('acceptProposalBtn').onclick = ()=> startAcceptFlow(item, filename);
-  document.getElementById('deleteProposalBtn').onclick = async ()=>{ if(!confirm('رفض المقترح وحذفه؟')) return; try{ await deleteProposal(readCfg(), filename); alert('تم الحذف'); loadAll(); }catch(e){ alert('خطأ: ' + e.message); } };
+  document.getElementById('deleteProposalBtn').onclick = async ()=> { if(!confirm('رفض المقترح وحذفه؟')) return; try{ await deleteProposalWithImage(readCfg(), filename); alert('تم الحذف'); loadAll(); }catch(e){ alert('خطأ: ' + e.message); } };
 }
 
+/* build proposal from detail and optionally upload new image (optimized) */
 async function buildProposalFromDetail(originalItem){
   const cfg = readCfg(); const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
   const updated = Object.assign({}, originalItem);
@@ -330,8 +295,8 @@ async function buildProposalFromDetail(originalItem){
   if(file){
     if(!pat || !repo) throw new Error('PAT و repo مطلوبان لتحميل الصورة');
     const imgName = `${updated.ref_code}-${file.name.replace(/[^a-z0-9.\-_]/ig,'_')}`;
-    const dataUrl = await toBase64(file); const base64 = dataUrl.split(',')[1];
-    await ghPut(pat, repo, `static/images/${imgName}`, base64, `upload ${imgName}`, branch, true);
+    const opt = await optimizeImageFile(file, OPT_DEFAULTS);
+    await ghPut(pat, repo, `static/images/${imgName}`, opt.base64, `upload ${imgName}`, branch, true);
     updated.image = `static/images/${imgName}`;
     updated.thumb = updated.image;
   }
@@ -344,37 +309,42 @@ async function updateProposalFile(cfg, filename, obj){
   return await ghPut(pat, repo, `static/proposals/${filename}`, base64, `update proposal ${obj.ref_code||filename}`, branch, true);
 }
 
-async function deleteProposal(cfg, filename){
-  const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
-  return await ghDelete(pat, repo, 'static/proposals/' + filename, 'reject proposal ' + filename, branch);
+/* delete proposal and its image (if any) */
+async function deleteProposalWithImage(cfg, filename){
+  // fetch proposal content via raw first (to know image)
+  try{
+    const proposalUrl = `https://raw.githubusercontent.com/${cfg.repo}/${cfg.branch||'main'}/static/proposals/${filename}`;
+    const pRes = await fetch(proposalUrl);
+    if(pRes.ok){
+      const item = await pRes.json().catch(()=>null);
+      if(item && item.image){ await maybeDeleteImage(cfg, item.image); }
+    }
+  }catch(e){ console.warn('could not prefetch proposal to delete image', e); }
+  return await ghDelete(cfg.pat, cfg.repo, 'static/proposals/' + filename, 'reject proposal ' + filename, cfg.branch || 'main');
 }
 
-/* ---------- Accept flow (show modal to get final code) ---------- */
-let pendingAccept = null; // { item, filename }
-function startAcceptFlow(item, filename){
-  pendingAccept = { item, filename };
-  document.getElementById('finalCodeInput').value = item.ref_code || '';
-  document.getElementById('acceptModal').style.display = 'flex';
-}
+/* ---------- Accept flow ---------- */
+let pendingAccept = null;
+function startAcceptFlow(item, filename){ pendingAccept = { item, filename }; document.getElementById('finalCodeInput').value = item.ref_code || ''; document.getElementById('acceptModal').style.display = 'flex'; }
 document.getElementById('cancelAcceptBtn').addEventListener('click', ()=> { document.getElementById('acceptModal').style.display = 'none'; pendingAccept = null; });
 document.getElementById('confirmAcceptBtn').addEventListener('click', async ()=>{
   const final = document.getElementById('finalCodeInput').value.trim() || (pendingAccept.item.ref_code || ('ad' + Date.now().toString(36)));
   document.getElementById('acceptModal').style.display = 'none';
   try{
-    // ensure latest edits if detail is open
     if(document.getElementById('p_name')) pendingAccept.item = await buildProposalFromDetail(pendingAccept.item);
   }catch(e){ console.warn('could not build from detail', e); }
-  await acceptProposalWithMapping(readCfg(), pendingAccept.filename, pendingAccept.item, final);
-  alert('تم القبول والتضمين (الرمز النهائي: ' + final + ')');
+  try{
+    await acceptProposalWithMapping(readCfg(), pendingAccept.filename, pendingAccept.item, final);
+    alert('تم القبول والتضمين (الرمز النهائي: ' + final + ')');
+  }catch(e){ alert('خطأ أثناء القبول: ' + e.message); console.error(e); }
   pendingAccept = null;
   loadAll();
 });
 
-/* accept implementation */
+/* accept implementation: add to ads.json, add mapping, delete proposal + maybe image handled already */
 async function acceptProposalWithMapping(cfg, filename, item, final_code){
   const pat = cfg.pat; const repo = cfg.repo; const branch = cfg.branch || 'main';
   if(!pat) throw new Error('PAT مطلوب');
-  // load ads.json
   const raw = await ghRaw(repo, 'static/ads.json', branch);
   const arr = raw ? JSON.parse(raw) : [];
   const ad = {
@@ -390,18 +360,25 @@ async function acceptProposalWithMapping(cfg, filename, item, final_code){
   };
   arr.unshift(ad);
   await ghPut(pat, repo, 'static/ads.json', btoa(unescape(encodeURIComponent(JSON.stringify(arr)))), 'accept proposal ' + (item.ref_code || filename), branch, true);
-  // mappings.json
   const rawMap = await ghRaw(repo, 'static/mappings.json', branch);
   const maps = rawMap ? JSON.parse(rawMap) : [];
   maps.unshift({ proposal_ref: item.ref_code || filename, final_code: final_code, accepted_at: new Date().toISOString() });
   await ghPut(pat, repo, 'static/mappings.json', btoa(unescape(encodeURIComponent(JSON.stringify(maps)))), 'add mapping ' + (item.ref_code || filename), branch, true);
-  // delete proposal file
-  await deleteProposal(cfg, filename);
+  // Delete proposal JSON and its image if present
+  try{
+    // fetch to get image path
+    const proposalUrl = `https://raw.githubusercontent.com/${repo}/${branch}/static/proposals/${filename}`;
+    const pRes = await fetch(proposalUrl);
+    if(pRes.ok){
+      const itemJson = await pRes.json().catch(()=>null);
+      if(itemJson && itemJson.image){ await maybeDeleteImage(cfg, itemJson.image); }
+    }
+  }catch(e){ console.warn('could not fetch proposal before delete', e); }
+  await ghDelete(pat, repo, 'static/proposals/' + filename, 'accept proposal ' + filename, branch);
 }
 
-/* ---------- add / edit / delete ads ---------- */
+/* ---------- Add / Edit / Delete ads ---------- */
 function openAdModal(mode, ad=null, idx=null){
-  // simple modal built in detail area
   detailEl.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="detailRow"><label class="small">رمز</label><input id="a_code" value="${escapeAttr(ad?.code||'')}" style="flex:1"></div>
@@ -427,9 +404,11 @@ function openAdModal(mode, ad=null, idx=null){
       let imgPath = ad?.image || '';
       if(file){
         const imgName = (document.getElementById('a_code').value.trim() || ('img' + Date.now())) + '-' + file.name.replace(/[^a-z0-9.\-_]/ig,'_');
-        const dataUrl = await toBase64(file); const base64 = dataUrl.split(',')[1];
-        await ghPut(pat, repo, `static/images/${imgName}`, base64, `upload ${imgName}`, branch, true);
+        const opt = await optimizeImageFile(file, OPT_DEFAULTS);
+        await ghPut(pat, repo, `static/images/${imgName}`, opt.base64, `upload ${imgName}`, branch, true);
         imgPath = `static/images/${imgName}`;
+        // if editing and old image exists, delete old image to save space
+        if(mode !== 'new' && ad && ad.image && ad.image !== imgPath){ await maybeDeleteImage(cfg, ad.image); }
       }
       const obj = {
         code: document.getElementById('a_code').value.trim() || ('c' + Date.now().toString(36).slice(-6)),
@@ -458,29 +437,33 @@ async function deleteAd(idx){
   try{
     const raw = await ghRaw(repo, 'static/ads.json', branch);
     const arr = raw ? JSON.parse(raw) : [];
-    arr.splice(idx, 1);
+    const img = arr[idx]?.image || arr[idx]?.thumb || '';
+    if(img) await maybeDeleteImage(cfg, img);
+    arr.splice(idx,1);
     await ghPut(pat, repo, 'static/ads.json', btoa(unescape(encodeURIComponent(JSON.stringify(arr)))), 'delete ad', branch, true);
     alert('تم الحذف');
     loadAll();
   }catch(e){ alert('خطأ: ' + e.message); console.error(e); }
 }
 
-// helpers
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+/* ---------- utilities ---------- */
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
-function toBase64(file){ return new Promise((res, rej) => { const r = new FileReader(); r.onload = ()=> res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+function toBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload = ()=>res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
 
-// initial load (if config exists try to load)
+/* ---------- init ---------- */
 (async function init(){
+  setUiFromCfg();
   const cfg = readCfg();
   if(cfg.repo && cfg.pat){
     try{
       const check = await ghApiGetWithPat(cfg.pat, cfg.repo, 'static/ads.json', cfg.branch || 'main');
-      if(check.status === 401 || check.status === 403){ updateStatus('PAT غير صالح أو لم يمنح الإذن'); return; }
+      if(check.status === 401 || check.status === 403){ updateStatus('PAT غير صالح أو لم يُمنح الإذن'); return; }
       loadAll();
     }catch(e){ console.warn('init check failed', e); }
   }
 })();
+
 </script>
 </body>
 </html>
